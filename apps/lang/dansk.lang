@@ -14919,7 +14919,7 @@
 </phrase>
 <phrase>
   id: LANG_CANCEL_0
-  desc: CANCEL.
+  desc: the command that closes, doing nothing: a question's choice, and the last row of the menus a held Select opens, as on a stock iPod
   user: core
   <source>
     *: "Cancel"

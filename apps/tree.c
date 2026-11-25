@@ -1427,8 +1427,10 @@ void tree_select_after_reload(const char *path)
    and Delete. False for USB. */
 static bool catalog_folder_menu(const char *path, const char *name)
 {
-    MENUITEM_STRINGLIST(folder_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
-                        ID2P(LANG_RENAME), ID2P(LANG_DELETE));
+    /* and Cancel last, as the other menus a held Select opens */
+    MENUITEM_STRINGLIST(folder_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
+                        onplay_cancel_callback,
+                        ID2P(LANG_RENAME), ID2P(LANG_DELETE), ID2P(LANG_CANCEL_0));
     char done[MAX_PATH];
     int r = 0;
     switch (do_menu(&folder_menu, NULL, NULL, false))

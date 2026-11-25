@@ -859,12 +859,13 @@ static enum pv_context_result context_menu(int index)
 
     /* what the list of songs to come is for: Rockbox's own playlist actions, its
        settings and its info page aren't offered */
-    MENUITEM_STRINGLIST(menu_items, ID2P(LANG_PLAYLIST), NULL,
-                        ID2P(LANG_REMOVE), ID2P(LANG_MOVE));
-    /* a queued song's with Clear Queue too */
-    MENUITEM_STRINGLIST(queue_items, ID2P(LANG_PLAYLIST), NULL,
+    MENUITEM_STRINGLIST(menu_items, ID2P(LANG_PLAYLIST), onplay_cancel_callback,
+                        ID2P(LANG_REMOVE), ID2P(LANG_MOVE), ID2P(LANG_CANCEL_0));
+    /* a queued song's with Clear Queue too; Cancel last, as the other menus
+       a held Select opens */
+    MENUITEM_STRINGLIST(queue_items, ID2P(LANG_PLAYLIST), onplay_cancel_callback,
                         ID2P(LANG_REMOVE), ID2P(LANG_MOVE),
-                        ID2P(LANG_UP_NEXT_CLEAR_QUEUE));
+                        ID2P(LANG_UP_NEXT_CLEAR_QUEUE), ID2P(LANG_CANCEL_0));
     const bool queued = viewer.queue_row >= 0 && pv_part(index) == 1;
     int sel = do_menu(queued ? &queue_items : &menu_items, NULL, NULL, false);
     if (sel == MENU_ATTACHED_USB)

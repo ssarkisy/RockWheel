@@ -6369,6 +6369,19 @@ static void context_menu_cleanup(void)
 /* context_menu()'s answer for Go to Artist: Cover Flow quits, for the lists */
 #define PF_LEAVE_FOR_LISTS (-100)
 
+/* Select on the menu's last row, Cancel, as on a stock iPod: Menu, back to
+   Cover Flow as it was, as onplay_cancel_row() in Music's lists */
+static int context_menu_callback(int action, const struct menu_item_ex *this_item,
+                                 struct gui_synclist *this_list)
+{
+    (void)this_item;
+    if (action == ACTION_STD_OK && this_list
+        && rb->gui_synclist_get_sel_pos(this_list)
+           == rb->gui_synclist_get_nb_items(this_list) - 1)
+        return ACTION_STD_CANCEL;
+    return action;
+}
+
 static int context_menu(void)
 {
     /* as Music's lists have it: Play Next and Play Last first, whenever songs can
@@ -6388,30 +6401,39 @@ static int context_menu(void)
     rb->snprintf(sort_by, sizeof(sort_by), "%s\t%s", rb->str(LANG_SORT_BY),
                  rb->str(pf_cfg.sort_albums_by == SORT_BY_YEAR ? LANG_SORT_YEAR
                                                                : LANG_SORT_ARTIST));
-    MENUITEM_STRINGLIST(playing_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
+    /* each with Cancel last */
+    MENUITEM_STRINGLIST(playing_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
+                        context_menu_callback,
                         ID2P(LANG_PLAY_NEXT),
                         ID2P(LANG_PLAY_LAST),
                         ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_ADD_TO_PL),
                         ID2P(LANG_GO_TO_ARTIST),
-                        sort_by);
-    MENUITEM_STRINGLIST(stopped_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
+                        sort_by,
+                        ID2P(LANG_CANCEL_0));
+    MENUITEM_STRINGLIST(stopped_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
+                        context_menu_callback,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_ADD_TO_PL),
                         ID2P(LANG_GO_TO_ARTIST),
-                        sort_by);
+                        sort_by,
+                        ID2P(LANG_CANCEL_0));
     /* without Go to Artist where it isn't offered, as opened by a file's
        menu: its rows are the first of those, then Sort By */
-    MENUITEM_STRINGLIST(playing_menu_here, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
+    MENUITEM_STRINGLIST(playing_menu_here, ID2P(LANG_ONPLAY_MENU_TITLE),
+                        context_menu_callback,
                         ID2P(LANG_PLAY_NEXT),
                         ID2P(LANG_PLAY_LAST),
                         ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_ADD_TO_PL),
-                        sort_by);
-    MENUITEM_STRINGLIST(stopped_menu_here, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
+                        sort_by,
+                        ID2P(LANG_CANCEL_0));
+    MENUITEM_STRINGLIST(stopped_menu_here, ID2P(LANG_ONPLAY_MENU_TITLE),
+                        context_menu_callback,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_ADD_TO_PL),
-                        sort_by);
+                        sort_by,
+                        ID2P(LANG_CANCEL_0));
     /* with Play Next and Play Last: whenever songs can be queued, with the
        music stopped into the list to resume too */
     const bool playing = rb->playlist_queue_possible();

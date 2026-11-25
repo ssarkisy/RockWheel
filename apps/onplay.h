@@ -105,6 +105,14 @@ bool onplay_row_hidden(const struct menu_item_ex *menu, int i);
 bool onplay_wps_menu_empty(void);
 /* whether a menu is the one held Select opens over Now Playing */
 bool onplay_is_wps_menu(const struct menu_item_ex *menu);
+/* The menus a held Select opens end with Cancel, as on a stock iPod: Select
+   on that last row is Menu (ACTION_STD_CANCEL), the action given otherwise;
+   and the same as the callback of such a menu of strings, its last string
+   LANG_CANCEL_0 */
+struct gui_synclist;
+int onplay_cancel_row(int action, struct gui_synclist *list);
+int onplay_cancel_callback(int action, const struct menu_item_ex *this_item,
+                           struct gui_synclist *this_list);
 int get_onplay_context(void);
 
 /* needed for the playlist viewer.. eventually clean this up */

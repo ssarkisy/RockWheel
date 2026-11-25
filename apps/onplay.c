@@ -1821,6 +1821,16 @@ MENUITEM_FUNCTION(chapters_item,
                   ID2P(LANG_CHAPTERS), open_chapters, chapters_callback,
                   Icon_NOICON);
 
+/* The last row of the menus a held Select opens, as on a stock iPod: Select
+   on it is Menu there (onplay_cancel_row()), back to the screen and the row
+   the menu was opened on. Leaving the menu, it opens nothing: no chevron */
+static int cancel_row(void)
+{
+    return 0;
+}
+MENUITEM_FUNCTION(cancel_item, MENU_EXITAFTERTHISMENU, ID2P(LANG_CANCEL_0),
+                  cancel_row, NULL, Icon_NOICON);
+
 /* used when onplay() is called in the CONTEXT_WPS context */
 MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_NOW_PLAYING),
            onplaymenu_callback, Icon_Audio,
@@ -1861,6 +1871,8 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_NOW_PLAYING),
            &context_item_2,
            &context_item_3,
            &context_item_4,
+           /* not one of the rows Settings > Now Playing Menu shows or not */
+           &cancel_item,
          );
 
 /* Settings > Now Playing Menu: each row of that menu shown or not, by its
@@ -1917,10 +1929,52 @@ static int wps_row(const struct menu_item_ex *item)
     return -1;
 }
 
-/* a group's bar with none of its rows left goes in init_menu_lists */
+/* a row of the menu over Now Playing shown, as init_menu_lists() asks it */
+static bool wps_row_shown(const struct menu_item_ex *menu, int i)
+{
+    const struct menu_item_ex *item = menu->submenus[i];
+    const menu_callback_type callback =
+        item->flags & (MENU_HAS_DESC|MENU_DYNAMIC_DESC)
+        ? item->callback_and_desc->menu_callback : item->menu_callback;
+    return wps_row(item) != 0
+           && (!callback || callback(ACTION_REQUEST_MENUITEM, item, NULL)
+                            != ACTION_EXIT_MENUITEM);
+}
+
+/* a group's bar with none of its rows shown before the next bar or Cancel:
+   gone. init_menu_lists() drops one only when a bar or the end follows it,
+   and Cancel follows whichever group is the last one left */
 bool onplay_row_hidden(const struct menu_item_ex *menu, int i)
 {
-    return menu == &wps_onplay_menu && wps_row(menu->submenus[i]) == 0;
+    if (menu != &wps_onplay_menu)
+        return false;
+    if ((menu->submenus[i]->flags & MENU_TYPE_MASK) == MT_GROUP)
+    {
+        const int count = MENU_GET_COUNT(menu->flags);
+        for (int j = i + 1; j < count && menu->submenus[j] != &cancel_item
+             && (menu->submenus[j]->flags & MENU_TYPE_MASK) != MT_GROUP; j++)
+        {
+            if (wps_row_shown(menu, j))
+                return false;
+        }
+        return true;
+    }
+    return wps_row(menu->submenus[i]) == 0;
+}
+
+int onplay_cancel_row(int action, struct gui_synclist *list)
+{
+    if (action == ACTION_STD_OK && list
+        && gui_synclist_get_sel_pos(list) == gui_synclist_get_nb_items(list) - 1)
+        return ACTION_STD_CANCEL;
+    return action;
+}
+
+int onplay_cancel_callback(int action, const struct menu_item_ex *this_item,
+                           struct gui_synclist *this_list)
+{
+    (void)this_item;
+    return onplay_cancel_row(action, this_list);
 }
 
 bool onplay_is_wps_menu(const struct menu_item_ex *menu)
@@ -2277,13 +2331,16 @@ MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
            &set_backdrop_item,
 #endif
            &add_to_faves_item, &set_as_dir_menu,
+           &cancel_item,
          );
 
 static int onplaymenu_callback(int action,
                                const struct menu_item_ex *this_item,
                                struct gui_synclist *this_list)
 {
-    (void)this_list;
+    /* Select on Cancel, the last row */
+    if (this_item == &tree_onplay_menu || this_item == &wps_onplay_menu)
+        action = onplay_cancel_row(action, this_list);
 
     switch (action)
     {
