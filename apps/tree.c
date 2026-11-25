@@ -1488,6 +1488,37 @@ static void catalog_sort_switched(void)
     catalog_select = LEAD_SORT_BY;
     reload_dir = true;
 }
+
+/* Play on the selected row plays it, as on a stock iPod (Apple's guide:
+   "select it and press Play/Pause"), where it has songs: in Music's lists
+   (tagtree_row_plays()), and a playlist with songs or On-The-Go of the
+   catalogue as Playlists shows it, given back to play at once
+   (tree_picked_to_play()). Elsewhere Play pauses and goes on, as in any
+   list */
+static bool tree_row_plays(void)
+{
+    const int row = gui_synclist_get_sel_pos(&tree_lists);
+    if (*tc.dirfilter == SHOW_ID3DB)
+        return tc.filesindir > 0 && !tree_is_group(row, NULL)
+               && tagtree_row_plays(&tc, index_of(row));
+    if (!catalog_viewed() || catalog_lead_row(row))
+        return false;
+    if (catalog_otg_row(row))
+        return !catalog_otg_empty;
+    if (tc.filesindir <= 0)
+        return false;
+    const struct entry *entry = get_valid_entry(__func__, &tc, index_of(row));
+    return (entry->attr & FILE_ATTR_MASK) == FILE_ATTR_M3U
+           && !(entry->attr & (ATTR_DIRECTORY | ENTRY_EMPTY_PLAYLIST));
+}
+
+/* the playlist the catalogue gave back last was picked by Play */
+static bool picked_to_play;
+
+bool tree_picked_to_play(void)
+{
+    return picked_to_play;
+}
 #endif
 
 /* main loop, handles key events */
@@ -1561,6 +1592,14 @@ static int dirbrowse(void)
                             list_do_action_timeout(&tree_lists, HZ/2));
 #endif
         oldbutton = button;
+#ifdef HAVE_TAGCACHE
+        /* Play on a row that plays: as Select there, a row of songs played
+           rather than opened. Through the list first, which takes Quick
+           Scroll's letter off as for Select */
+        const bool play_row = button == ACTION_LIST_PLAYPAUSE && tree_row_plays();
+        if (play_row)
+            button = ACTION_STD_OK;
+#endif
         gui_synclist_do_button(&tree_lists, &button);
         const bool on_otg = catalog_otg_row(gui_synclist_get_sel_pos(&tree_lists));
         const int lead_row = gui_synclist_get_sel_pos(&tree_lists);
@@ -1714,6 +1753,9 @@ static int dirbrowse(void)
             {
                 tc.browse->flags |= BROWSE_SELECTED;
                 strmemccpy(tc.browse->buf, OTG_FILE, tc.browse->bufsize);
+#ifdef HAVE_TAGCACHE
+                picked_to_play = play_row;
+#endif
                 return exit_to_new_screen(GO_TO_PREVIOUS);
             }
             if (button == ACTION_STD_OK || button == ACTION_STD_CONTEXT
@@ -1743,6 +1785,9 @@ static int dirbrowse(void)
                     {
                         tc.browse->flags |= BROWSE_SELECTED;
                         get_current_file(tc.browse->buf, tc.browse->bufsize);
+#ifdef HAVE_TAGCACHE
+                        picked_to_play = play_row;
+#endif
                         return exit_to_new_screen(GO_TO_PREVIOUS);
                     }
                 }
@@ -1756,7 +1801,13 @@ static int dirbrowse(void)
                     return exit_to_new_screen(GO_TO_WPS);
 #endif
 #ifdef HAVE_TAGCACHE
-                switch (id3db ? tagtree_enter(&tc, true) : ft_enter(&tc))
+                int entered = id3db ? play_row ? tagtree_play_row(&tc)
+                                               : tagtree_enter(&tc, true)
+                                    : ft_enter(&tc);
+                /* nothing played: no slide, the list as it was */
+                if (play_row && entered != GO_TO_WPS)
+                    transition_cancel();
+                switch (entered)
 #else
                 switch (ft_enter(&tc))
 #endif

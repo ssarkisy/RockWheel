@@ -592,6 +592,19 @@ int root_menu_go_to_album(const char *name, int32_t artist)
                                             &last_db_selection), starts);
 }
 
+bool root_menu_play_found(int tag, const char *name, int32_t artist)
+{
+    /* the lists' place as it was, and the file browser's level, which the
+       lists have while they're not shown (browser()) */
+    struct tree_context *tc = tree_get_context();
+    const int dirlevel = tc->dirlevel, selected_item = tc->selected_item;
+    const bool played = tagtree_play_found(tag, name, artist, &last_db_dirlevel,
+                                           &last_db_selection);
+    tc->dirlevel = dirlevel;
+    tc->selected_item = selected_item;
+    return played;
+}
+
 void root_menu_artists_grouping_changed(bool on)
 {
     (void)on;

@@ -48,6 +48,7 @@
 #include "root_menu.h"
 #include "general.h"
 #include "on_the_go.h"
+#include "transition.h"
 #ifdef HAVE_TAGCACHE
 #include "library_playlists.h"
 #include "ipod_playlists.h"
@@ -216,6 +217,26 @@ static int view_playlist(char *file, int *selection)
     return playlist_viewer_ex(file, selection);
 }
 
+/* A playlist picked by Play, as Playlists shows the catalogue: its songs
+   from the first, as Select on that one in its screen, which doesn't open,
+   as on a stock iPod. 1 if the music plays, 0 if it doesn't, -1 for one
+   picked by Select, or without the database in memory, to show */
+static int play_picked(const char *file)
+{
+#ifdef HAVE_TAGCACHE
+    if (tree_picked_to_play() && lp_viewable(file))
+    {
+        transition_begin(TRANSITION_FORWARD);
+        if (lp_play_file(file))
+            return 1;
+        transition_cancel();
+        return 0;
+    }
+#endif
+    (void)file;
+    return -1;
+}
+
 /* Display all playlists in catalog.  Selected "playlist" is returned.
  * If status is CATBROWSE_CATVIEW then we're not adding anything into playlist */
 static int display_playlists(char* playlist, enum catbrowse_status_flags status)
@@ -294,8 +315,13 @@ restart:
     if (view && (browse.flags & BROWSE_SELECTED)
         && !strcmp(selected_playlist, OTG_FILE))
     {
+        const int played = play_picked(selected_playlist);
+        if (played > 0)
+            result = 0;
+        else if (played == 0)
+            goto restart;
         /* a path of its own: the viewer cuts it apart for a while */
-        switch (view_playlist(selected_playlist, NULL))
+        else switch (view_playlist(selected_playlist, NULL))
         {
             case PLAYLIST_VIEWER_OK:
                 result = 0;
@@ -321,10 +347,12 @@ restart:
 
         if (view) /* display playlist contents or resume bookmark */
         {
-            int res = bookmark_autoload(selected_playlist);
-            if (res == BOOKMARK_DO_RESUME)
+            const int played = play_picked(selected_playlist);
+            int res = played < 0 ? bookmark_autoload(selected_playlist)
+                                 : BOOKMARK_DONT_RESUME;
+            if (played > 0 || res == BOOKMARK_DO_RESUME)
                result = 0;
-            else if (res == BOOKMARK_CANCEL)
+            else if (played == 0 || res == BOOKMARK_CANCEL)
                 goto restart;
             else
             {

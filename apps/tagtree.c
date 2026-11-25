@@ -728,6 +728,12 @@ static struct tagtree_place saved_place, go_to_place;
    in its menu, to go back to (tagtree_browse_from_row()); and a place held for
    a moment */
 static struct tagtree_place browse_place, scratch_place;
+/* Play on a row of songs (tagtree_play_row()): the list it opened unseen, at
+   the song played, of the start it made (played_starts). Playing From goes
+   there, as after Select on that song; Menu over Now Playing still goes back
+   to the row, where the music was started (saved_place) */
+static struct tagtree_place played_place;
+static unsigned int played_starts = ~0u;
 
 /* Artists' search with the other artists at its top, out of tagtree's buffer, as
    go_to_row() makes it: [0] of the albums' artists, [1] of the songs'. Each is
@@ -766,7 +772,7 @@ static int move_callback(int handle, void* current, void* new)
     if (csi && in_buffer(csi, current))
         UPDATE(csi, diff);
     struct tagtree_place *const places[] = {
-        &saved_place, &go_to_place, &browse_place, &scratch_place
+        &saved_place, &go_to_place, &browse_place, &scratch_place, &played_place
     };
     for (size_t i = 0; i < ARRAYLEN(places); i++)
     {
@@ -5447,10 +5453,18 @@ bool tagtree_playing_from_known(void)
                && place_key(&saved_place) == saved_key);
 }
 
+/* played_place is of the start saved_place is of, the music playing's */
+static bool played_current(void)
+{
+    return played_starts == saved_starts
+           && saved_starts == playlist_start_count();
+}
+
 /* The lists there, from Now Playing's Playing From, with the song playing
-   selected if the list has it, or else the row it was started from. Until
-   tagtree_end_go_to(), Menu in that list leaves the lists. False if it isn't
-   known. */
+   selected if the list has it, or else the row it was started from; after
+   Play on a row of songs, the list that row opened (played_place, which the
+   kept place is of then, for after a boot). Until tagtree_end_go_to(), Menu
+   in that list leaves the lists. False if it isn't known. */
 bool tagtree_go_to_from(int *dirlevel, int *selected_item)
 {
     struct tree_context *c = tree_get_context();
@@ -5458,7 +5472,9 @@ bool tagtree_go_to_from(int *dirlevel, int *selected_item)
     if (!tagtree_ready() || !tagcache_is_usable() || !tagtree_playing_from_known())
         return false;
     place_save(&go_to_place, *dirlevel, *selected_item);
-    place_restore(&saved_place, dirlevel, selected_item);
+    /* after Play on a row of songs, the list it opened, as after Select there */
+    place_restore(played_current() ? &played_place : &saved_place, dirlevel,
+                  selected_item);
     c->dirlevel = *dirlevel;
     c->selected_item = *selected_item;
     if (tagtree_load(c) <= 0)
@@ -5524,19 +5540,25 @@ static void kept_place_remove(void)
 }
 
 /* saved_place into the file, unless it's there already: its pointers as the
-   numbers of the menus and searches they point into */
+   numbers of the menus and searches they point into. After a boot it serves
+   Playing From alone (music_origin is none then): so after Play on a row of
+   songs, the list it opened, played_place, by its own key, as Playing From
+   goes there before the boot too */
 static void kept_place_write(void)
 {
+    const bool played = played_current();
+    const struct tagtree_place *place = played ? &played_place : &saved_place;
     kept = (struct kept_place){
         .magic = KEPT_PLACE_MAGIC, .size = sizeof(kept.place),
-        .commitid = saved_commit, .list = saved_list, .key = saved_key,
-        .menu = menu_index(saved_place.menu),
+        .commitid = saved_commit, .list = saved_list,
+        .key = played ? place_key(&played_place) : saved_key,
+        .menu = menu_index(place->menu),
         .csi_menu = -1, .csi_item = -1, .copy = -1, .copy_tag = -1,
-        .place = saved_place,
+        .place = *place,
     };
     for (int i = 0; i < 2; i++)
     {
-        if (saved_place.csi == &artists_copy[i])
+        if (place->csi == &artists_copy[i])
         {
             kept.copy = i;
             kept.csi_item = artists_copy_item[i];
@@ -5547,7 +5569,7 @@ static void kept_place_write(void)
     {
         for (int i = 0; i < menus[m]->itemcount; i++)
         {
-            if (saved_place.csi == &menus[m]->items[i]->si)
+            if (place->csi == &menus[m]->items[i]->si)
             {
                 kept.csi_menu = m;
                 kept.csi_item = i;
@@ -6471,9 +6493,11 @@ void tagtree_albums_reordered(void)
         section_rows[section] = -1;
     albums_place_reset(&saved_place, false);
     albums_place_reset(&go_to_place, false);
+    albums_place_reset(&played_place, false);
     /* and Recently Added, whose rows are the table's too */
     albums_place_reset(&saved_place, true);
     albums_place_reset(&go_to_place, true);
+    albums_place_reset(&played_place, true);
     if ((is_albums(csi) || is_recent(csi)) && max_history_level >= 1)
     {
         selected_item_history[1] = -1;
@@ -6519,6 +6543,7 @@ void tagtree_artists_grouping_changed(int *dirlevel, int *selected_item)
     artists_place_cut(&saved_place);
     artists_place_cut(&go_to_place);
     artists_place_cut(&browse_place);
+    artists_place_cut(&played_place);
     /* where the lists were left */
     place_save(&scratch_place, *dirlevel, *selected_item);
     if (artists_place_cut(&scratch_place))
@@ -6556,6 +6581,7 @@ void tagtree_compilations_changed(int *dirlevel, int *selected_item)
     artists_rows_cut(&saved_place);
     artists_rows_cut(&go_to_place);
     artists_rows_cut(&browse_place);
+    artists_rows_cut(&played_place);
     if (dirlevel && selected_item)
     {
         place_save(&scratch_place, *dirlevel, *selected_item);
@@ -6613,6 +6639,7 @@ void tagtree_sort_by_switched(struct tree_context *c)
         all_songs_place_reset(&saved_place);
         all_songs_place_reset(&go_to_place);
         all_songs_place_reset(&browse_place);
+        all_songs_place_reset(&played_place);
     }
     else if (is_songs(csi))
     {
@@ -6620,6 +6647,7 @@ void tagtree_sort_by_switched(struct tree_context *c)
         songs_place_reset(&saved_place);
         songs_place_reset(&go_to_place);
         songs_place_reset(&browse_place);
+        songs_place_reset(&played_place);
         const int section = section_of(LANG_SONGS);
         if (section >= 0)
             section_rows[section] = -1;
@@ -6634,6 +6662,7 @@ void tagtree_sort_by_switched(struct tree_context *c)
         place_reorder_reset(&saved_place, persons_list);
         place_reorder_reset(&go_to_place, persons_list);
         place_reorder_reset(&browse_place, persons_list);
+        place_reorder_reset(&played_place, persons_list);
     }
     else if (podcasts_shows(csi, c->currtable, c->currextra))
     {
@@ -6646,6 +6675,7 @@ void tagtree_sort_by_switched(struct tree_context *c)
         place_reorder_reset(&saved_place, podcasts_shows);
         place_reorder_reset(&go_to_place, podcasts_shows);
         place_reorder_reset(&browse_place, podcasts_shows);
+        place_reorder_reset(&played_place, podcasts_shows);
     }
     else
     {
@@ -6658,6 +6688,7 @@ void tagtree_sort_by_switched(struct tree_context *c)
         albums_place_reset(&saved_place, false);
         albums_place_reset(&go_to_place, false);
         albums_place_reset(&browse_place, false);
+        albums_place_reset(&played_place, false);
     }
     settings_save();
 }
@@ -6668,10 +6699,13 @@ void tagtree_music_menu_changed(bool shown)
     selected_item_history[0] = 0;
     saved_place.selected_item_history[0] = 0;
     go_to_place.selected_item_history[0] = 0;
+    played_place.selected_item_history[0] = 0;
     if (saved_place.dirlevel == 0)
         saved_place.selected_item = 0;
     if (go_to_place.dirlevel == 0)
         go_to_place.selected_item = 0;
+    if (played_place.dirlevel == 0)
+        played_place.selected_item = 0;
     root_rows_changed = true;
 }
 
@@ -8594,6 +8628,14 @@ bool tagtree_songs_stale(void)
                || songs_orders_stale() || album_keys_stale());
 }
 
+/* The songs gathered under a row by goto_all_songs(), played: Play on a row
+   none of whose lists has them all, as a genre's of several artists, or an
+   artist's or a composer's too many for All Songs, in Music's lists or
+   Search (play_row_gathered()). From a playlist of no list's, as no list
+   shows them, not one by the id of the list of the rows, by which one of its
+   other rows would find these songs again */
+static bool play_gathered;
+
 static int tagtree_play_folder(struct tree_context* c)
 {
     logf( "%s", __func__);
@@ -8610,7 +8652,7 @@ static int tagtree_play_folder(struct tree_context* c)
 
     int n = c->filesindir - c->special_entry_count;
     loaded_file[0] = '\0';
-    if (n <= playlist_get_current()->max_playlist_size)
+    if (n <= playlist_get_current()->max_playlist_size && !play_gathered)
     {
         int result = tagtree_load_list(c, &start_index);
         if (result < 0)
@@ -8658,6 +8700,194 @@ static int tagtree_play_folder(struct tree_context* c)
     if (kept_hash) /* as it is now, the playlist made from it */
         keep_list(c, kept_count);
     return 0;
+}
+
+/* Play on a row of Music's lists plays it, as on a stock iPod (Apple's
+   guide: "select it and press Play/Pause"): a song, and a book's Resume or
+   Listen Again, as Select there; a row of songs, as an album, an artist, a
+   genre, a show or a book, those. Not Music's own rows, a Sort By, nor the
+   song playing of this list, where Play pauses and goes on as anywhere */
+bool tagtree_row_plays(struct tree_context *c, int row)
+{
+    if (!c || c->currtable == TABLE_ROOT || !csi || row < 0
+        || row >= c->filesindir)
+        return false;
+    const struct tagentry *entry = tagtree_get_entry(c, row);
+    if (!entry)
+        return false;
+    const long playing = gui_synclist_song_playing();
+    if (entry->customaction == ONPLAY_CUSTOMACTION_BOOK_RESUME)
+    {
+        const int part = tagtree_book_resume_row(c);
+        return part >= 0 && !tagtree_row_is_playing(c, part, playing);
+    }
+    if (entry->customaction != ONPLAY_NO_CUSTOMACTION)
+        return false;
+    switch (entry->newtable)
+    {
+        case TABLE_PLAYTRACK:
+            return !tagtree_row_is_playing(c, row, playing);
+        case TABLE_NAVIBROWSE:
+        case TABLE_ALLSUBENTRIES:
+        case TABLE_ALLSUBENTRIES_SORTED_BY_ALBUMS:
+            return entry->extraseek != -1; /* not <Random>'s */
+        default:
+            return false;
+    }
+}
+
+/* In the list a row of songs just opened, those songs played as Select plays
+   them from the row that has them all, gone into as by hand: a book's part
+   it goes on with, All Songs over a person's albums, the first song, or the
+   one row of a list of one. 2 (to Now Playing) if they play, 0 if not, -1 if
+   no row has them all, as among a genre's artists */
+static int play_list_opened(struct tree_context *c)
+{
+    for (int level = c->dirlevel; level < MAX_DIR_LEVELS; level++)
+    {
+        const int first = c->special_entry_count;
+        if (c->filesindir <= first)
+            return 0;
+        int row = tagtree_book_resume_row(c);
+        for (int i = 0; row < 0 && i < first; i++)
+        {
+            const struct tagentry *entry = tagtree_get_entry(c, i);
+            if (entry && entry->newtable == TABLE_ALLSUBENTRIES)
+                row = i;
+        }
+        const struct tagentry *entry = tagtree_get_entry(c, first);
+        if (row < 0 && entry && (entry->newtable == TABLE_PLAYTRACK
+                                 || c->filesindir == first + 1))
+            row = first;
+        if (row < 0)
+            return -1;
+        c->selected_item = row;
+        entry = tagtree_get_entry(c, row);
+        if (!entry)
+            return 0;
+        if (entry->newtable == TABLE_PLAYTRACK)
+            return tagtree_enter(c, false) == 2 ? 2 : 0;
+        tagtree_enter(c, false);
+        if (c->dirlevel != level + 1 || tagtree_load(c) < 0
+            || c->dirlevel != level + 1)
+            return 0;
+    }
+    return 0;
+}
+
+/* The songs under the selected row, gathered as Play Next has them
+   (goto_all_songs()), played in a playlist of their own: 2 if they play */
+static int play_row_gathered(struct tree_context *c)
+{
+    int rc = 0;
+    if (!warn_on_pl_erase() || !goto_all_songs())
+        return 0;
+    c->selected_item = 0;
+    play_gathered = true;
+    cpu_boost(true);
+    if (tagtree_play_folder(c) >= 0)
+        rc = 2;
+    cpu_boost(false);
+    play_gathered = false;
+    return rc;
+}
+
+/* As reset_tc_to_prev(), but the list not loaded: Now Playing comes next,
+   and the browser loads it again as it opens (rockbox_browse()) */
+static void levels_back(struct tree_context *c, int dirlevel, int selected_item)
+{
+    while (c->dirlevel > dirlevel)
+        tagtree_exit(c, false);
+    c->selected_item = selected_item;
+}
+
+/* The selected row played, one tagtree_row_plays() takes: a song as Select;
+   a row of songs as Select on the row of them all in the list it opens, or
+   else its songs gathered, from the first. The lists stay as they were, Menu
+   over Now Playing back to this one, Playing From to the list it opened
+   (played_place). 2 (to Now Playing) if the music plays */
+int tagtree_play_row(struct tree_context *c)
+{
+    const int dirlevel = c->dirlevel;
+    const int row = c->selected_item;
+    const struct tagentry *entry = tagtree_get_entry(c, row);
+    if (!entry)
+        return 0;
+    /* a book's Resume or Listen Again is its part's row here already, as
+       for Select (dirbrowse()) */
+    if (entry->newtable == TABLE_PLAYTRACK)
+        return tagtree_enter(c, true);
+    if (global_settings.party_mode && audio_status())
+    {
+        splash(HZ, ID2P(LANG_PARTY_MODE));
+        return 0;
+    }
+
+    int rc = -1;
+    tagtree_enter(c, false);
+    if (c->dirlevel == dirlevel + 1 && tagtree_load(c) >= 0
+        && c->dirlevel == dirlevel + 1)
+        rc = play_list_opened(c);
+    if (rc == 2)
+    {
+        /* where Playing From goes, the list played from */
+        place_save(&played_place, c->dirlevel, c->selected_item);
+        played_starts = playlist_start_count();
+    }
+    if (rc < 0)
+    {
+        /* no row of its lists has them all: from its own row, the list
+           loaded again; not if that load fell back to Music's own menu,
+           whose rows aren't the row's (tagtree_load()) */
+        reset_tc_to_prev(dirlevel, row);
+        rc = c->dirlevel == dirlevel && c->currtable != TABLE_ROOT ?
+             play_row_gathered(c) : 0;
+    }
+    if (rc == 2)
+        levels_back(c, dirlevel, row);
+    else
+        reset_tc_to_prev(dirlevel, row);
+    return rc;
+}
+
+/* Play on an album or an artist Search found (tag_album, or the artists'
+   tag): as Play on its row in Albums or Artists, the lists left as they
+   were. True if the music plays */
+bool tagtree_play_found(int tag, const char *name, int32_t artist,
+                        int *dirlevel, int *selected_item)
+{
+    struct tree_context *c = tree_get_context();
+    if (global_settings.party_mode && audio_status())
+    {
+        splash(HZ, ID2P(LANG_PARTY_MODE));
+        return false;
+    }
+    if (!(tag == tag_album ? tagtree_go_to_album(name, artist, dirlevel,
+                                                 selected_item)
+                           : tagtree_go_to_name(tag, name, dirlevel,
+                                                selected_item)))
+        return false;
+    /* in the list its row opens, as go_to_row() leaves it */
+    const int opened = c->dirlevel;
+    int rc = play_list_opened(c);
+    int from_row = c->selected_item;
+    if (rc < 0)
+    {
+        /* from its row, in the list a level up */
+        while (c->dirlevel >= opened)
+            tagtree_exit(c, false);
+        c->selected_item = from_row = selected_item_history[c->dirlevel];
+        rc = tagtree_load(c) >= 0 && c->dirlevel == opened - 1 ?
+             play_row_gathered(c) : 0;
+    }
+    /* the place it was started from, which Search's own rows have none of:
+       the list opened, as after Select on the album and that song
+       (go_to_browse()), where Playing From goes; for the songs gathered, the
+       row of the artist found, as for Music's rows (tagtree_play_row()) */
+    if (rc == 2)
+        tagtree_save_place(c->dirlevel, from_row);
+    tagtree_end_go_to(true, dirlevel, selected_item);
+    return rc == 2;
 }
 
 static struct tagentry* tagtree_get_entry(struct tree_context *c, int id)

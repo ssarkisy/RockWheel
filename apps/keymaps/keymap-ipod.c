@@ -40,7 +40,10 @@ CONTEXT_CUSTOM|CONTEXT_TREE = the standard list/tree defines (without directions
 */
 
 /* Stock iPod behaviour: Menu goes back, prev/next and play control the
-   music from any list. Holding Select opens the context menu. */
+   music from any list; Play but on a row that has songs, which it plays:
+   in Music's lists and Playlists' catalogue (tree.c's tree_row_plays()),
+   a playlist's screen, Search and Cover Flow, each by its own check.
+   Holding Select opens the context menu. */
 static const struct button_mapping button_context_standard[]  = {
     { ACTION_STD_PREV,          BUTTON_SCROLL_BACK,                 BUTTON_NONE },
     { ACTION_STD_PREVREPEAT,    BUTTON_SCROLL_BACK|BUTTON_REPEAT,   BUTTON_NONE },

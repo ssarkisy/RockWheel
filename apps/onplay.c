@@ -1480,8 +1480,8 @@ MENUITEM_FUNCTION(go_to_album_item,
 
 /* Playing From: where the music playing was started, at the song playing: a
    list of Music's, or a playlist, of Playlists, On-The-Go or another. None if
-   that isn't known, as for Search, Cover Flow or Shuffle Songs; Up Next is
-   there anyway (the owner's decision, 2026-11-09) */
+   that isn't known, as for Search's songs, Cover Flow or Shuffle Songs; Up
+   Next is there anyway (the owner's decision, 2026-11-09) */
 static int playing_from(void)
 {
     if (tagtree_playing_from_known())

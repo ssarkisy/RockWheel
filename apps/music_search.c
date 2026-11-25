@@ -2678,6 +2678,32 @@ static int open_result(int g, int index)
     return screen;
 }
 
+/* Play on what one found plays it, as on a stock iPod: a song as Select, an
+   album or an artist as from its row in Albums or Artists, Search staying
+   where it is. Not a group's name nor See All, where Play pauses as
+   anywhere; of a row of the results (row_group()). The song playing is the
+   caller's to leave out */
+static bool result_plays(int g, int index)
+{
+    return g >= 0 && index >= 0 && !see_all(g, index);
+}
+
+/* the screen to go to, or 0 for the one it was in */
+static int play_result(int g, int index)
+{
+    if (g == GROUP_SONGS)
+        return open_result(g, index);
+    const struct result *r = &results[group_first[g] + index];
+    const int no = g == GROUP_ALBUMS && global_settings.album_artists ?
+                   album_of(r) : -1;
+    transition_begin(TRANSITION_FORWARD);
+    if (root_menu_play_found(group_tag[g], pool + r->name,
+                             no < 0 ? -1 : album_years_artist(no)))
+        return GO_TO_WPS;
+    transition_cancel();
+    return 0;
+}
+
 /* a held Select on a song: the menu a song has in Music's lists, Add to
    On-The-Go first; the screen to go to, or 0 for this one */
 static int song_menu(int index)
@@ -2800,12 +2826,19 @@ static int show_group(int g)
             list_covers_input();
         if (covers && list_covers_poll())
             redraw = true;
+        /* Play on any row, one found each: through the list as Select,
+           which takes Quick Scroll's letter off */
+        const bool play = action == ACTION_LIST_PLAYPAUSE
+                          && gui_synclist_get_sel_pos(&list) >= 0;
+        if (play)
+            action = ACTION_STD_OK;
         if (gui_synclist_do_button(&list, &action))
             continue;
         switch (action)
         {
             case ACTION_STD_OK:
-                ret = open_result(g, gui_synclist_get_sel_pos(&list));
+                ret = play ? play_result(g, gui_synclist_get_sel_pos(&list))
+                           : open_result(g, gui_synclist_get_sel_pos(&list));
                 redraw = true;
                 break;
             case ACTION_STD_CONTEXT:
@@ -2946,6 +2979,18 @@ int music_search_screen(void *param)
 
         if (in_results)
         {
+            /* Play on a row that plays: through the list as Select. Not the
+               song playing, where it pauses and goes on, as in Music's lists */
+            int play_index;
+            const int play_group = row_group(gui_synclist_get_sel_pos(&lists),
+                                             &play_index);
+            const bool play = action == ACTION_LIST_PLAYPAUSE
+                && result_plays(play_group, play_index)
+                && !(play_group == GROUP_SONGS
+                     && results[group_first[GROUP_SONGS] + play_index].idx_id + 1
+                        == gui_synclist_song_playing());
+            if (play)
+                action = ACTION_STD_OK;
             if (gui_synclist_do_button(&lists, &action))
                 continue;
             switch (action)
@@ -2954,7 +2999,8 @@ int music_search_screen(void *param)
                     chosen_row = gui_synclist_get_sel_pos(&lists);
                     /* what it opens may take the plugins' buffer */
                     names_let_go();
-                    ret = open_row(chosen_row);
+                    ret = play ? play_result(play_group, play_index)
+                               : open_row(chosen_row);
                     if (ret == 0)
                         names_hold();
                     redraw = true;

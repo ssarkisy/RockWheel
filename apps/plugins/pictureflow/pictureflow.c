@@ -7649,24 +7649,29 @@ static int pictureflow_main(void)
         switch (button) {
 #ifdef ITUNESDB_HAVE_ART
         case ACTION_LIST_PLAYPAUSE:
-            /* Play pauses the music and goes on with it, as anywhere, while
-               the settings keep it playing in here; with none, as after a
-               restart, it goes on where it was, as Resume Playback does */
-            if (rb->global_settings->coverflow_pause)
-                break;
-            if (rb->audio_status() & AUDIO_STATUS_PLAY)
+#if PF_PLAYBACK_CAPABLE
+            /* Play on an album plays it from its first track, and on a track
+               from that one, as Select on a track, as on a stock iPod, and
+               Now Playing comes as after Select (auto_wps, never 0 here).
+               Nothing while a cover turns */
+            if (pf_state == pf_scrolling)
             {
-                if (rb->audio_status() & AUDIO_STATUS_PAUSE)
-                    rb->audio_resume();
-                else
-                    rb->audio_pause();
+                set_current_slide(target);
+                pf_state = pf_idle;
             }
-            else if (rb->global_status->resume_index != -1
-                     && (drop_frame(), rb->playlist_resume() != -1))
-                rb->playlist_resume_track(rb->global_status->resume_index,
-                                          rb->global_status->resume_crc32,
-                                          rb->global_status->resume_elapsed,
-                                          rb->global_status->resume_offset);
+            if (pf_state == pf_idle
+                || (pf_state == pf_show_tracks && !show_tracks_while_browsing))
+            {
+                drop_frame();
+                /* the album's tracks made for it on a cover, from its first
+                   (start_playback()), and given back if it doesn't play, as
+                   after its menu (context_menu_cleanup()) */
+                if (start_playback(true))
+                    return PLUGIN_GOTO_WPS;
+                if (pf_state != pf_show_tracks)
+                    free_borrowed_tracks();
+            }
+#endif
             break;
         case ACTION_TREE_STOP:
             /* held, to Now Playing if it has a song, as from the lists:

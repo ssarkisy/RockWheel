@@ -2949,6 +2949,17 @@ static bool NO_INLINE lp_play(int song)
     return true;
 }
 
+bool lp_play_file(const char *file)
+{
+    /* its songs as its screen reads them, lp_view()'s */
+    tidy_copy(lp.file, sizeof(lp.file), file);
+    lp.library = itunesdb_own_playlist(lp.file);
+    lp.otg = lp_same_file(lp.file, OTG_FILE);
+    lp.waited = smart_prepare(lp.file);
+    lp.unloaded = !lp_load();
+    return !lp.unloaded && lp.count > 0 && lp_play(0);
+}
+
 /* the song out of the music playing too, if it plays from this playlist:
    its first time after the one playing, else another than that; never a
    copy queued by Play Next or Play Last, which isn't the playlist's */
@@ -3386,6 +3397,13 @@ int lp_view(const char *file, int *selection)
             redraw = true;
         if (lp.header && album_header_cover_came())
             redraw = true;
+        /* Play on a song plays it, as Select, as on a stock iPod; on the one
+           playing from here it pauses and goes on, as in any list */
+        if (action == ACTION_LIST_PLAYPAUSE && lp.count > 0
+            && is_song_row(gui_synclist_get_sel_pos(&list))
+            && !(playing_from(lp.file) && gui_synclist_song_playing()
+                 == (long)lp.songs[song_of(gui_synclist_get_sel_pos(&list))].idx + 1))
+            action = ACTION_STD_OK;
         if (gui_synclist_do_button(&list, &action))
             continue;
         const int row = gui_synclist_get_sel_pos(&list);

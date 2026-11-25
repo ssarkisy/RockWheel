@@ -157,6 +157,13 @@ bool tagtree_at_top(void);
 char *tagtree_get_title(struct tree_context* c);
 int tagtree_get_attr(struct tree_context* c);
 bool tagtree_row_is_playing(struct tree_context *c, int row, long playing);
+/* Play on a row: whether it plays it, as on a stock iPod, rather than pausing;
+   and the selected one played, 2 (to Now Playing) if the music plays */
+bool tagtree_row_plays(struct tree_context *c, int row);
+int tagtree_play_row(struct tree_context *c);
+/* the same of an album (tag_album) or an artist Search found, by its name */
+bool tagtree_play_found(int tag, const char *name, int32_t artist,
+                        int *dirlevel, int *selected_item);
 /* the column before the rows' names: the digits of its widest text, 0 for a
    list without it; and a row's text there, as gui_synclist's lead has it */
 int tagtree_lead_digits(struct tree_context *c);

@@ -134,6 +134,9 @@ void tree_select_after_reload(const char *path);
 /* Playlists' callback_show_item: at the catalogue's top the playlists and
    folders synced from the computer, and in Unsynced those that aren't */
 bool tree_catalog_show_item(char *name, int attr, struct tree_context *c);
+/* the playlist the catalogue, as Playlists shows it, gave back last was
+   picked by Play, to be played at once rather than shown */
+bool tree_picked_to_play(void);
 int rockbox_browse(struct browse_context *browse);
 int create_playlist(void);
 void resume_directory(const char *dir);
