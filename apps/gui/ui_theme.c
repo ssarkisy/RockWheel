@@ -120,8 +120,8 @@ static const struct ui_theme ui_themes[] = {
            are: the list in 17 px Bold in rows of 20, eight of them under
            the status bar of 16; a row of two lines 32, the name's whole
            cell over the second line's 14, five of them, with a cover of
-           29 px (LINE_COVER_SIZE): whole rows of either kind in the
-           list's 160 */
+           28 px (LINE_COVER_SIZE), two rows over it and two under: whole
+           rows of either kind in the list's 160 */
         .cover_colours = true,
         .font = {
             [UI_FONT_LIST]          = FONT_DIR "/" UI_CLASSIC_FONT ".fnt",
@@ -157,7 +157,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SUBLINE_GAP]          = 1,
             [UI_METRIC_NAME_TEXT_DY]         = 0,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
-            [UI_METRIC_ROW_COVER_GAP]        = 6,
+            /* the cover on columns 4 to 31, the text's cell from 39 */
+            [UI_METRIC_ROW_COVER_GAP]        = 7,
             /* three rows, 51 px: the cover 44 px, 4 under their top; the
                texts' three lines 49 px from 2 down */
             [UI_METRIC_HEADER_COVER_TOP]     = 4,
@@ -356,7 +357,7 @@ static const struct ui_theme ui_themes[] = {
         .metric = {
             [UI_METRIC_ROW_HEIGHT]           = 20,
             /* the rows' text 7 px from the list's edge, a cover 3 px and
-               its text 5 px after it: the bar runs from edge to edge */
+               its text 6 px after it: the bar runs from edge to edge */
             [UI_METRIC_TEXT_INSET]           = 7,
             [UI_METRIC_INITIAL_HEIGHT]       = 64,
             [UI_METRIC_INITIAL_MARGIN]       = 12,
@@ -377,7 +378,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SUBLINE_GAP]          = 2,
             [UI_METRIC_NAME_TEXT_DY]         = -1,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
-            [UI_METRIC_ROW_COVER_GAP]        = 5,
+            [UI_METRIC_ROW_COVER_GAP]        = 6,
             /* the cover 44 px in the middle of the three rows of one line it
                takes, as the Video's 60 in its 90 */
             [UI_METRIC_HEADER_COVER_TOP]     = 4,
@@ -634,7 +635,7 @@ static const struct ui_theme ui_themes[] = {
         /* The iPod photo's: the Video's by its own rules on a screen three
            quarters as high, its pixels a little larger: 15 px type in rows
            of 20, eight under the status line; a row of two lines 32, five of
-           them, with a cover of 29 px (LINE_COVER_SIZE): whole rows of either
+           them, with a cover of 28 px (LINE_COVER_SIZE): whole rows of either
            kind in the list's 160; the Video's glyphs at their own sizes */
         .list_font = "15-Inter-SemiBold",
         .selector_bevel = false,
@@ -683,7 +684,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SUBLINE_GAP]          = 2,
             [UI_METRIC_NAME_TEXT_DY]         = -1,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
-            [UI_METRIC_ROW_COVER_GAP]        = 6,
+            [UI_METRIC_ROW_COVER_GAP]        = 7,
             /* two rows of one line, so that five songs show under it: the
                cover 38 px and 3 over and under it */
             [UI_METRIC_HEADER_COVER_TOP]     = 3,
@@ -899,8 +900,9 @@ static const struct ui_theme ui_themes[] = {
                     [UI_COLOUR_RING_TICK_MINOR] = RGB(0xa5, 0xa2, 0x9c),
                 },
 #ifdef UI_220X176
-                /* no lit top row: a row's cover 29 px in its band of 31, the
-                   band's colour a row over and under it */
+                /* no lit top row: a row's cover of 28 px on rows 2 to 29 of
+                   its 32, the band's colour two rows over it and one under
+                   it, then the bevel's darker last row */
                 .bevel = { 0, 0, 14 },
 #else
                 .bevel = { 35, 0, 14 },
@@ -962,7 +964,7 @@ static const struct ui_theme ui_themes[] = {
         },
 #ifdef UI_220X176
         /* The iPod photo's, the Video's by the same rules: rows of 20 in
-           15 px type, of two lines 32 with covers of 29 (LINE_COVER_SIZE),
+           15 px type, of two lines 32 with covers of 28 (LINE_COVER_SIZE),
            their text and covers 4 px from the edge; no dot, the selected
            name in the signal colour (UI_METRIC_SELECTION_SIGNAL) */
         .list_font = "15-Inter-SemiBold",
@@ -1008,7 +1010,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SUBLINE_GAP]          = 2,
             [UI_METRIC_NAME_TEXT_DY]         = -1,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
-            [UI_METRIC_ROW_COVER_GAP]        = 8,
+            [UI_METRIC_ROW_COVER_GAP]        = 9,
             /* two rows of one line, the cover 38 px and 3 over and under it */
             [UI_METRIC_HEADER_COVER_TOP]     = 3,
             [UI_METRIC_HEADER_COVER_GAP]     = 8,

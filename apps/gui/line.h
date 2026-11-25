@@ -269,10 +269,11 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
                        const char *text, unsigned value_colour);
 /* An album's cover at x, y of a row: pixels of LINE_COVER_SIZE a side, or
    NULL for the note on a tile in its place, as an album without one has and
-   one not read yet. On the iPod photo's 220x176 29 px, in its rows of two
-   lines of 31, five of which fit its lists (ui_theme.c) */
+   one not read yet. On the iPod photo's 220x176 28 px, in its rows of two
+   lines of 32, five of which fit its lists (ui_theme.c): two rows over it
+   and two under, as the Video's 32 have in its rows of 36 */
 #if (LCD_WIDTH == 220) && (LCD_HEIGHT == 176)
-#define LINE_COVER_SIZE 29
+#define LINE_COVER_SIZE 28
 #else
 #define LINE_COVER_SIZE 32
 #endif

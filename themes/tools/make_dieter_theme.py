@@ -387,7 +387,7 @@ VIDEO = dict(
 # status line at the lists' text inset as the Video's; the status line's 16
 # rows, the lists from 16 (over its
 # hairline and lip); rows
-# of 20, of two lines the firmware's 32 with covers of 29 (LINE_COVER_SIZE),
+# of 20, of two lines the firmware's 32 with covers of 28 (LINE_COVER_SIZE),
 # so that 8 or 5 fill them; the pane from 110, as the port's. Now Playing
 # at the lists' edge (NP_M: the screen is small, the margins took the
 # text's room): its cover of 96 at (4, 30), its details from 108 to 4 px
@@ -413,7 +413,7 @@ PHOTO = dict(
     ARTIST_GAP=2, PLACE_GAP=3, RATING_GAP=2, FORMAT_GAP=2,
     # the title on one line, scrolling, as the column is narrow
     MODES_Y=20, BIG=140, BIG_X=40, BIG_Y=26, LYRICS_Y=22, SPEED_H=40, TITLE_LINES=1,
-    RING_R=3.0, CHEV=(4, 7), ROW_COVER=29, HEADER_COVER=38,
+    RING_R=3.0, CHEV=(4, 7), ROW_COVER=28, HEADER_COVER=38,
     TW_R=13, USB_R=22, USB_W=3,
 )
 LAYOUTS = (VIDEO, PHOTO)

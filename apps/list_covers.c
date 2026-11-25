@@ -65,7 +65,7 @@
 #define COVER_BYTES (SIDE * SIDE * (int)sizeof(fb_data))
 /* A cover's place in the file, read as it is: its pixels in whole sectors,
    as the disk is read by them (file_read_mapped()), the rest zeros; 2 KB,
-   which a cover of 32 px fills (the iPod photo's of 29 has 366 B over). A
+   which a cover of 32 px fills (the iPod photo's of 28 has 480 B over). A
    file of covers of another side is made again (the header's side) */
 #define SLOT_SIZE   ((COVER_BYTES + 511) / 512 * 512)
 #define NO_SLOT     0xffff
