@@ -7464,16 +7464,20 @@ static bool slide_cached(int slide_index)
     return false;
 }
 
-/* The covers in view, the album's and those beside it, loaded, as a start
-   shows them, or none left for the slide thread to load: an album's tracks
-   keep it from loading while they show (buf_ctx), so covers not loaded by
-   the time they open come only as the album closes */
+/* The covers in view loaded, or none left for the slide thread to load: an
+   album's tracks keep it from loading while they show (buf_ctx), so a cover
+   not loaded by the time they open comes only once the album has closed.
+   They are the album's own, which its closing turns back into, and those
+   beside it as the covers rest (render_all_slides()), which show beside its
+   tracks or as they close; the farthest of those shows only past a cover in
+   front of it that isn't square. The outermost on each side (num_slides)
+   comes only as the covers move. */
 static bool view_slides_loaded(void)
 {
     if (!slides_pending())
         return true;
-    for (int i = center_index - pf_cfg.num_slides;
-         i <= center_index + pf_cfg.num_slides; i++)
+    const int aside = pf_cfg.num_slides - 1;
+    for (int i = center_index - aside; i <= center_index + aside; i++)
     {
         if (i >= 0 && i < number_of_slides && !slide_cached(i))
             return false;
