@@ -46,6 +46,12 @@ static int                  staging_buffer_index;
 
 #define zero_buffer (staging_buffers[USB_BATCH_SLOTS])
 
+/* Audio packets served from SDRAM were lost on the isochronous endpoint far
+ * more often under codec and disk load, the controller fetching each one by
+ * DMA only as the host asks for it; from IRAM almost none are. The silent
+ * packet, rarely sent, stays in SDRAM. */
+static uint8_t staging_iram[USB_BATCH_SLOTS][AS_PACKET_SIZE] IBSS_ATTR __attribute__((aligned(32)));
+
 static const uint8_t* pulled_buf;
 static size_t         pulled_buf_size;
 static size_t         pulled_buf_cursor;
@@ -236,10 +242,15 @@ struct pcm_sink iap_pcm_sink = {
 bool iap_audio_init(void) {
     check_act(usb_drv_batch_init(AS_EP_IN, batch_get_more) == 0, return false);
 
-    for(size_t i = 0; i < ARRAYLEN(staging_buffers); i += 1) {
-        check_act(iap_alloc_usb_send_buffer(AS_PACKET_SIZE, &staging_buffers[i].buf), goto error);
-        staging_buffers[i].cursor = 0;
+    for(size_t i = 0; i < USB_BATCH_SLOTS; i += 1) {
+        staging_buffers[i].buf.ptr = staging_iram[i];
+        staging_buffers[i].cursor  = 0;
     }
+    check_act(iap_alloc_usb_send_buffer(AS_PACKET_SIZE, &zero_buffer.buf), {
+        usb_drv_batch_deinit();
+        return false;
+    });
+    zero_buffer.cursor   = 0;
     staging_buffer_index = 0;
 
     memset(zero_buffer.buf.ptr, 0, AS_PACKET_SIZE);
@@ -252,23 +263,12 @@ bool iap_audio_init(void) {
     packet_count     = 0;
 
     return true;
-
-error:
-    for(size_t i = 0; i < ARRAYLEN(staging_buffers); i += 1) {
-        if(staging_buffers[i].buf.ptr != NULL) {
-            core_free(staging_buffers[i].buf.handle);
-            staging_buffers[i].buf.ptr = NULL;
-        }
-    }
-    return false;
 }
 
 bool iap_audio_deinit(void) {
     check_act(usb_drv_batch_deinit() == 0, );
-    for(size_t i = 0; i < ARRAYLEN(staging_buffers); i += 1) {
-        core_free(staging_buffers[i].buf.handle);
-        staging_buffers[i].buf.ptr = NULL;
-    }
+    core_free(zero_buffer.buf.handle);
+    zero_buffer.buf.ptr = NULL;
     return true;
 }
 
