@@ -11,6 +11,8 @@
 #include "platform.h"
 #include "span.h"
 #include "spec/iap.h"
+#include "spec/lingoes/general/set-internal-battery-charging-state.h"
+#include "spec/lingoes/sound-check-state.h"
 #include "unaligned.h"
 
 enum TransIDSupport {
@@ -57,9 +59,12 @@ IAPBool iap_init_ctx(struct IAPContext* ctx, struct IAPOpts opts, void* platform
     memset(ctx, 0, sizeof(*ctx));
     ctx->opts     = opts;
     ctx->platform = platform;
+    ctx->ui_mode  = IAPUIMode_Extended;
 
     ctx->hid_recv_buf = iap_platform_malloc(ctx, HID_BUFFER_SIZE, 0);
     check_ret(ctx->hid_recv_buf != NULL, iap_false);
+    ctx->deferred_recv_buf = iap_platform_malloc(ctx, HID_BUFFER_SIZE, 0);
+    check_ret(ctx->deferred_recv_buf != NULL, iap_false);
     ctx->send_buf = iap_platform_malloc(ctx, SEND_BUFFER_SIZE, 0);
     check_ret(ctx->send_buf != NULL, iap_false);
     ctx->handling_trans_id    = -1;
@@ -76,6 +81,7 @@ IAPBool iap_deinit_ctx(struct IAPContext* ctx) {
     }
     iap_platform_free(ctx, ctx->hid_send_staging_buf);
     iap_platform_free(ctx, ctx->hid_recv_buf);
+    iap_platform_free(ctx, ctx->deferred_recv_buf);
     iap_platform_free(ctx, ctx->send_buf);
     return iap_true;
 }
@@ -161,7 +167,6 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
 static int32_t start_artwork_data(struct IAPContext* ctx, struct IAPSpan* request_span, IAPBool ext) {
     read_request(IAPGetTrackArtworkDataPayload);
     check_ret(request->format_id == 0, -IAPAckStatus_EBadParameter);
-    check_ret(request->offset_ms == 0, -IAPAckStatus_EBadParameter);
     check_ret(!ctx->artwork.valid, -IAPAckStatus_EBadParameter);
 
     check_ret(iap_platform_open_artwork(ctx, swap_32(request->track_index), &ctx->artwork), -IAPAckStatus_EBadParameter);
@@ -194,14 +199,96 @@ static int32_t ipod_ack_ext(uint16_t command, enum IAPAckStatus status, struct I
     return IAPExtendedInterfaceCommandID_IPodAck;
 }
 
+static IAPBool write_db_record_payload(struct IAPContext* ctx, uint8_t type, uint32_t index, struct IAPSpan* span) {
+    char record_buf[256];
+    check_ret(iap_platform_db_get_record(ctx, type, index, record_buf, sizeof(record_buf)), iap_false);
+
+    struct IAPReturnCategorizedDatabaseRecordsPayload* response = iap_span_alloc(span, sizeof(*response));
+    check_ret(response != NULL, iap_false);
+    response->index = swap_32(index);
+
+    const size_t len = strlen(record_buf);
+    check_ret(iap_span_append(span, record_buf, len + 1), iap_false);
+    return iap_true;
+}
+
+static IAPBool send_db_record_cb(struct IAPContext* ctx) {
+    if(ctx->db_retrieve_remaining == 0) {
+        return iap_true;
+    }
+
+    struct IAPSpan payload = _iap_get_buffer_for_send_payload(ctx);
+    check_ret(write_db_record_payload(ctx, ctx->db_retrieve_type, ctx->db_retrieve_index, &payload), iap_false);
+
+    ctx->db_retrieve_index     += 1;
+    ctx->db_retrieve_remaining -= 1;
+    if(ctx->db_retrieve_remaining > 0) {
+        ctx->on_send_complete = send_db_record_cb;
+    }
+    check_ret(_iap_send_packet(ctx, IAPLingoID_ExtendedInterface, IAPExtendedInterfaceCommandID_ReturnCategorizedDatabaseRecords,
+                               ctx->db_retrieve_trans_id, payload.ptr),
+              iap_false);
+    return iap_true;
+}
+
+static IAPBool transition_idps_to_auth_cb(struct IAPContext* ctx);
+
 static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request_span, struct IAPSpan* response_span) {
     switch(lingo) {
     case IAPLingoID_General:
         switch(command) {
+        case IAPGeneralCommandID_Identify: {
+            ctx->phase = IAPPhase_Authed;
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
         case IAPGeneralCommandID_RequestExtendedInterfaceMode: {
             alloc_response(IAPReturnExtendedInterfaceModePayload);
-            response->is_ext_mode = 1;
+            response->is_ext_mode = ctx->ui_mode == IAPUIMode_Extended ? 1 : 0;
             return IAPGeneralCommandID_ReturnExtendedInterfaceMode;
+        } break;
+        case IAPGeneralCommandID_EnterExtendedInterfaceMode: {
+            ctx->ui_mode = IAPUIMode_Extended;
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
+        case IAPGeneralCommandID_ExitExtendedInterfaceMode: {
+            ctx->ui_mode = IAPUIMode_Standard;
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
+        case IAPGeneralCommandID_IdentifyDeviceLingoes: {
+            read_request(IAPIdentifyDeviceLingoesPayload);
+            switch(swap_32(request->options)) {
+            case IAPIdentifyDeviceLingoesOptions_NoAuth:
+            case IAPIdentifyDeviceLingoesOptions_DeferAuth:
+                ctx->phase = IAPPhase_Authed;
+                break;
+            case IAPIdentifyDeviceLingoesOptions_ImmediateAuth:
+                ctx->on_send_complete = transition_idps_to_auth_cb;
+                break;
+            default:
+                return -IAPAckStatus_EBadParameter;
+            }
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
+        case IAPGeneralCommandID_StartIDPS: {
+            ctx->db_retrieve_remaining = 0;
+            ctx->artwork_trans_id      = -1;
+            ctx->idps_samprs_count     = 0;
+            ctx->on_send_complete      = NULL;
+            ctx->phase                 = IAPPhase_IDPS;
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
+        case IAPGeneralCommandID_GetUIMode: {
+            alloc_response(IAPSetUIModePayload);
+            response->ui_mode = ctx->ui_mode;
+            return IAPGeneralCommandID_RetUIMode;
+        } break;
+        case IAPGeneralCommandID_CancelCommand: {
+            read_request(IAPCancelCommandPayload);
+            ctx->db_retrieve_remaining = 0;
+            ctx->artwork_trans_id      = -1;
+            ctx->on_send_complete      = NULL;
+            (void)request;
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
         } break;
         case IAPGeneralCommandID_RequestIPodName: {
             // Note:  This should be pulled from .rockbox/playername.txt
@@ -224,9 +311,9 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPGeneralCommandID_RequestIPodSoftwareVersion: {
             alloc_response(IAPReturnIPodSoftwareVersionPayload);
-            response->major    = 18;
-            response->minor    = 7;
-            response->revision = 2;
+            response->major    = 2;
+            response->minor    = 0;
+            response->revision = 4;
             return IAPGeneralCommandID_ReturnIPodSoftwareVersion;
         } break;
         case IAPGeneralCommandID_RequestIPodSerialNum: {
@@ -234,8 +321,9 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             return IAPGeneralCommandID_ReturnIPodSerialNum;
         } break;
         case IAPGeneralCommandID_RequestIPodModelNum: {
-            static const char* model_num = "MTAY2J/A";
-            check_ret(iap_span_append(response_span, model_num, strlen(model_num) + 1), -IAPAckStatus_EOutOfResource);
+            static const char model_num[] = "MC293";
+            check_ret(iap_span_write_32(response_span, 0x00130200U), -IAPAckStatus_EOutOfResource);
+            check_ret(iap_span_append(response_span, model_num, sizeof(model_num)), -IAPAckStatus_EOutOfResource);
             return IAPGeneralCommandID_ReturnIPodModelNum;
         } break;
         case IAPGeneralCommandID_RequestTransportMaxPayloadSize: {
@@ -275,14 +363,16 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPGeneralCommandID_GetIPodOptions: {
             alloc_response(IAPRetIPodOptionsPayload);
-            response->state = 0;
+            response->state = swap_64((uint64_t)IAPRetIPodOptionsState_SetiPodPreferencesSupport);
             return IAPGeneralCommandID_RetIPodOptions;
         } break;
         case IAPGeneralCommandID_GetIPodPreferences: {
             read_request(IAPGetIPodPreferencesPayload);
             alloc_response(IAPRetIPodPreferencesPayload);
             response->class_id   = request->class_id;
-            response->setting_id = 0; /* TODO: return actual value */
+            response->setting_id = (request->class_id == IAPIPodPereferenceClassID_LineOutUsage)
+                                       ? IAPIPodPreferenceLineOutUsageSettingID_Used
+                                       : 0;
             return IAPGeneralCommandID_RetIPodPreferences;
         } break;
         case IAPGeneralCommandID_SetIPodPreferences: {
@@ -292,6 +382,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPGeneralCommandID_SetUIMode: {
             read_request(IAPSetUIModePayload);
+            ctx->ui_mode = request->ui_mode;
             return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
         } break;
         case IAPGeneralCommandID_GetIPodOptionsForLingo: {
@@ -299,14 +390,28 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             alloc_response(IAPRetIPodOptionsForLingoPayload);
             response->lingo_id = request->lingo_id;
             switch(request->lingo_id) {
-            case IAPLingoID_SimpleRemote:
-                response->bits = swap_64(IAPRetIPodOptionsForLingoSimpleRemoteBits_ContextSpecificControls);
-                break;
             case IAPLingoID_General:
+                response->bits = swap_64((uint64_t)IAPRetIPodOptionsForLingoGeneralBits_LineOutUsage |
+                                         (uint64_t)IAPRetIPodOptionsForLingoGeneralBits_DeviceNotification |
+                                         (uint64_t)IAPRetIPodOptionsForLingoGeneralBits_PauseOnRemovalControl);
+                break;
+            case IAPLingoID_SimpleRemote:
+                response->bits = swap_64((uint64_t)IAPRetIPodOptionsForLingoSimpleRemoteBits_ContextSpecificControls |
+                                         (uint64_t)IAPRetIPodOptionsForLingoSimpleRemoteBits_AudioMediaControls);
+                break;
             case IAPLingoID_DisplayRemote:
+                response->bits = swap_64((uint64_t)IAPRetIPodOptionsForLingoDisplayRemoteBits_UIVolumeControl |
+                                         (uint64_t)IAPRetIPodOptionsForLingoDisplayRemoteBits_AbsoluteVolumeControl);
+                break;
             case IAPLingoID_ExtendedInterface:
+                response->bits = swap_64((uint64_t)IAPRetIPodOptionsForLingoExtendedInterfaceBits_DisplayImages |
+                                         (uint64_t)IAPRetIPodOptionsForLingoExtendedInterfaceBits_CategoryListAccess |
+                                         (uint64_t)IAPRetIPodOptionsForLingoExtendedInterfaceBits_PlayControl);
+                break;
             case IAPLingoID_DigitalAudio:
-            case IAPLingoID_Storage: /* TODO: this is not supported */
+                response->bits = swap_64((uint64_t)IAPRetIPodOptionsForLingoDigitalAudioBits_SampleRateCapsFIDToken);
+                break;
+            case IAPLingoID_Storage:
                 response->bits = 0;
                 break;
             case IAPLingoID_USBHostMode:
@@ -316,12 +421,14 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             case IAPLingoID_Location: { /* not supported */
                 return -IAPAckStatus_EBadParameter;
             }
+            default:
+                return -IAPAckStatus_EBadParameter;
             }
             return IAPGeneralCommandID_RetIPodOptionsForLingo;
         } break;
         case IAPGeneralCommandID_GetSupportedEventNotification: {
             alloc_response(IAPRetSupportedEventNotificationPayload);
-            response->mask = swap_64(IAPSetEventNotificationEvents_FlowControl);
+            response->mask = swap_64((uint64_t)IAPSetEventNotificationEvents_FlowControl);
             return IAPGeneralCommandID_RetSupportedEventNotification;
         } break;
         case IAPGeneralCommandID_SetAvailableCurrent: {
@@ -330,7 +437,43 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPGeneralCommandID_SetEventNotification: {
             read_request(IAPSetEventNotificationPayload);
+            ctx->event_notification_mask = swap_64(request->mask);
             return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
+        case IAPGeneralCommandID_GetEventNotification: {
+            alloc_response(IAPRetEventNotificationPayload);
+            response->mask = swap_64(ctx->event_notification_mask);
+            return IAPGeneralCommandID_RetEventNotification;
+        } break;
+        case IAPGeneralCommandID_SetInternalBatteryChargingState: {
+            read_request(IAPInternalBatteryChargingStatePayload);
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
+        case IAPGeneralCommandID_RequestApplicationLaunch: {
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
+        case IAPGeneralCommandID_GetNowPlayingApplicationBundleName: {
+            static const char bundle[] = "com.apple.mobileipod";
+            check_ret(iap_span_append(response_span, bundle, sizeof(bundle)), -IAPAckStatus_EOutOfResource);
+            return IAPGeneralCommandID_RetNowPlayingApplicationBundleName;
+        } break;
+        case IAPGeneralCommandID_GetLocalizationInfo: {
+            read_request(IAPGetLocalizationInfoPayload);
+            const char* val     = NULL;
+            size_t      val_len = 0;
+            if(request->type == IAPLocalicationInfoType_Language) {
+                val     = "en";
+                val_len = sizeof("en");
+            } else if(request->type == IAPLocalicationInfoType_Region) {
+                val     = "US";
+                val_len = sizeof("US");
+            } else {
+                return -IAPAckStatus_EBadParameter;
+            }
+            alloc_response(IAPRetLocalizationInfoPayload);
+            response->type = request->type;
+            check_ret(iap_span_append(response_span, val, val_len), -IAPAckStatus_EOutOfResource);
+            return IAPGeneralCommandID_RetLocalizationInfo;
         } break;
         }
         break;
@@ -359,16 +502,16 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 {released.volume_down, IAPPlatformControl_VolumeDown},
                 {released.next_track, IAPPlatformControl_Next},
                 {released.prev_track, IAPPlatformControl_Prev},
-                {released.next_album, IAPPlatformControl_Next},
-                {released.prev_album, IAPPlatformControl_Prev},
+                {released.next_album, IAPPlatformControl_NextAlbum},
+                {released.prev_album, IAPPlatformControl_PrevAlbum},
                 {released.stop, IAPPlatformControl_Stop},
                 {released.play, IAPPlatformControl_Play},
                 {released.pause, IAPPlatformControl_Pause},
                 {released.mute_toggle, IAPPlatformControl_ToggleMute},
-                {released.next_chapter, IAPPlatformControl_Next},
-                {released.prev_chapter, IAPPlatformControl_Prev},
-                {released.next_playlist, IAPPlatformControl_Next},
-                {released.prev_playlist, IAPPlatformControl_Prev},
+                {released.next_chapter, IAPPlatformControl_NextAlbum},
+                {released.prev_chapter, IAPPlatformControl_PrevAlbum},
+                {released.next_playlist, IAPPlatformControl_NextPlaylist},
+                {released.prev_playlist, IAPPlatformControl_PrevPlaylist},
             };
             for(size_t i = 0; i < array_size(table); i += 1) {
                 if(table[i].released) {
@@ -379,13 +522,13 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 uint8_t current;
                 check_act(iap_platform_get_shuffle_setting(ctx, &current), return 0);
                 current = (current + 1) % IAPIPodStateShuffleSettingState_Albums;
-                check_act(iap_platform_set_shuffle_setting(ctx, current), return 0);
+                check_act(iap_platform_set_shuffle_setting(ctx, current, iap_false), return 0);
             }
             if(released.repeat_advance) {
                 uint8_t current;
                 check_act(iap_platform_get_repeat_setting(ctx, &current), return 0);
                 current = (current + 1) % IAPIPodStateRepeatSettingState_All;
-                check_act(iap_platform_set_repeat_setting(ctx, current), return 0);
+                check_act(iap_platform_set_repeat_setting(ctx, current, iap_false), return 0);
             }
             return 0;
         } break;
@@ -393,15 +536,37 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         break;
     case IAPLingoID_DisplayRemote:
         switch(command) {
+        case IAPDisplayRemoteCommandID_GetCurrentEQProfileIndex: {
+            alloc_response(IAPRetCurrentEQProfileIndexPayload);
+            response->index = 0;
+            return IAPDisplayRemoteCommandID_RetCurrentEQProfileIndex;
+        } break;
         case IAPDisplayRemoteCommandID_SetCurrentEQProfileIndex: {
             read_request(IAPSetCurrentEQProfileIndexPayload);
             return ipod_ack(command, IAPAckStatus_Success, response_span, IAPDisplayRemoteCommandID_IPodAck);
+        } break;
+        case IAPDisplayRemoteCommandID_GetNumEQProfiles: {
+            alloc_response(IAPRetNumEQProfilesPayload);
+            response->count = swap_32(1);
+            return IAPDisplayRemoteCommandID_RetNumEQProfiles;
+        } break;
+        case IAPDisplayRemoteCommandID_GetIndexedEQProfileName: {
+            read_request(IAPGetIndexedEQProfileNamePayload);
+            check_ret(swap_32(request->index) == 0, -IAPAckStatus_EBadParameter);
+            static const char eq_name[] = "Flat";
+            check_ret(iap_span_append(response_span, eq_name, sizeof(eq_name)), -IAPAckStatus_EOutOfResource);
+            return IAPDisplayRemoteCommandID_RetIndexedEQProfileName;
         } break;
         case IAPDisplayRemoteCommandID_SetRemoteEventNotification: {
             read_request(IAPSetRemoteEventNotificationPayload);
             ctx->notifications_3         = 0;
             ctx->enabled_notifications_3 = swap_32(request->mask);
             return ipod_ack(command, IAPAckStatus_Success, response_span, IAPDisplayRemoteCommandID_IPodAck);
+        } break;
+        case IAPDisplayRemoteCommandID_GetRemoteEventStatus: {
+            alloc_response(IAPRetRemoteEventStatusPayload);
+            response->mask = swap_32(ctx->notifications_3);
+            return IAPDisplayRemoteCommandID_RetRemoteEventStatus;
         } break;
         case IAPDisplayRemoteCommandID_GetIPodStateInfo: {
             read_request(IAPGetIPodStateInfoPayload);
@@ -532,14 +697,41 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_PlaybackEngineContents: {
+                struct IAPPlatformPlayStatus status;
+                check_ret(iap_platform_get_play_status(ctx, &status), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPIPodStatePlaybackEngineContentsPayload);
-                response->count = 0; /* TODO: shoud be supported? */
+                response->count = swap_32(status.track_count);
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             default:
                 warn("invalid request type 0x%02" PRIX8, request->type);
                 return -IAPAckStatus_EBadParameter;
             }
+        } break;
+        case IAPDisplayRemoteCommandID_SetIPodStateInfo: {
+            uint8_t state_type = 0;
+            check_ret(iap_span_read_8(request_span, &state_type), -IAPAckStatus_EBadParameter);
+            check_ret(state_type <= IAPIPodStateType_PlaybackEngineContents, -IAPAckStatus_EBadParameter);
+            switch(state_type) {
+            case IAPIPodStateType_TrackPlaybackIndex: {
+                uint32_t idx = 0;
+                check_ret(iap_span_read_32(request_span, &idx), -IAPAckStatus_EBadParameter);
+                check_ret(iap_platform_set_playing_track(ctx, idx), -IAPAckStatus_ECommandFailed);
+            } break;
+            case IAPIPodStateType_ShuffleSetting: {
+                uint8_t val = 0;
+                check_ret(iap_span_read_8(request_span, &val), -IAPAckStatus_EBadParameter);
+                check_ret(iap_platform_set_shuffle_setting(ctx, val, iap_false), -IAPAckStatus_ECommandFailed);
+            } break;
+            case IAPIPodStateType_RepeatSetting: {
+                uint8_t val = 0;
+                check_ret(iap_span_read_8(request_span, &val), -IAPAckStatus_EBadParameter);
+                check_ret(iap_platform_set_repeat_setting(ctx, val, iap_false), -IAPAckStatus_ECommandFailed);
+            } break;
+            default:
+                break;
+            }
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPDisplayRemoteCommandID_IPodAck);
         } break;
         case IAPDisplayRemoteCommandID_GetPlayStatus: {
             struct IAPPlatformPlayStatus status;
@@ -568,7 +760,10 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
             } break;
             case IAPIndexedPlayingTrackInfoType_ChapterTimeName: {
-                return -IAPAckStatus_EBadParameter;
+                alloc_response_extra(IAPRetIndexedPlayingTrackInfoChapterTimeNamePayload, 1);
+                response->offset_ms = 0;
+                response->name[0]   = '\0';
+                return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
             } break;
             case IAPIndexedPlayingTrackInfoType_ArtistName: {
                 alloc_response(IAPRetIndexedPlayingTrackInfoArtistNamePayload);
@@ -607,15 +802,18 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
             } break;
             case IAPIndexedPlayingTrackInfoType_ArtworkCount: {
+                uint32_t                    caps = 0;
+                struct IAPPlatformTrackInfo info = {.caps = &caps};
+                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_EBadParameter);
                 alloc_response_extra(IAPRetIndexedPlayingTrackInfoArtworkCountPayload, sizeof(struct IAPArtworkCount));
                 response->data[0].format = 0;
-                response->data[0].count  = swap_16(1);
+                response->data[0].count  = (caps & IAPIPodStateTrackCapBits_HasAlbumArts) ? swap_16(1) : 0;
                 return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
             } break;
             }
         } break;
         case IAPDisplayRemoteCommandID_GetArtworkFormats: {
-            alloc_response_extra(IAPArtworkFormat, sizeof(struct IAPArtworkFormat));
+            alloc_response(IAPArtworkFormat);
             response->format_id    = 0;
             response->pixel_format = IAP_COLOR_ARTWORK ? IAPArtworkPixelFormats_RGB565LE : IAPArtworkPixelFormats_Mono;
             response->image_width  = swap_16(IAP_ARTWORK_WIDTH);
@@ -644,6 +842,21 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             response->battery_level = status.battery_level;
             return IAPDisplayRemoteCommandID_RetPowerBatteryState;
         } break;
+        case IAPDisplayRemoteCommandID_GetSoundCheckState: {
+            alloc_response(IAPRetSoundCheckStatePayload);
+            response->sound_check_status = 0;
+            return IAPDisplayRemoteCommandID_RetSoundCheckState;
+        } break;
+        case IAPDisplayRemoteCommandID_SetSoundCheckState: {
+            uint8_t status = 0;
+            check_ret(iap_span_read_8(request_span, &status), -IAPAckStatus_EBadParameter);
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPDisplayRemoteCommandID_IPodAck);
+        } break;
+        case IAPDisplayRemoteCommandID_SetCurrentPlayingTrack: {
+            read_request(IAPSetCurrentPlayingTrackPayload);
+            check_ret(iap_platform_set_playing_track(ctx, swap_32(request->index)), -IAPAckStatus_ECommandFailed);
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPDisplayRemoteCommandID_IPodAck);
+        } break;
         case IAPDisplayRemoteCommandID_GetTrackArtworkTimes: {
             read_request(IAPGetTrackArtworkTimesPayload);
             const uint16_t count = swap_16(request->artwork_count);
@@ -669,6 +882,11 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             alloc_response(IAPRetAudiobookSpeedPayload);
             response->speed = IAPIPodStateAudiobookSpeeed_Normal;
             return IAPExtendedInterfaceCommandID_RetAudiobookSpeed;
+        } break;
+        case IAPExtendedInterfaceCommandID_SetAudiobookSpeed: {
+            uint8_t speed = 0;
+            check_ret(iap_span_read_8(request_span, &speed), -IAPAckStatus_EBadParameter);
+            return ipod_ack_ext(command, IAPAckStatus_Success, response_span);
         } break;
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackInfo: {
             read_request(IAPExtendedGetIndexedPlayingTrackInfoPayload);
@@ -731,11 +949,13 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackArtworkCount: {
-                // IAPArtworkPixelFormats_RGB565LE;
-                // struct IAPExtendedRetIndexedPlayingTrackInfoTrackArtworkCountPayload payload = {
-                //     .};
-                warn("artwork not implemented");
-                return -IAPAckStatus_ECommandFailed;
+                uint32_t                    caps = 0;
+                struct IAPPlatformTrackInfo info = {.caps = &caps};
+                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_EBadParameter);
+                alloc_response_extra(IAPExtendedRetIndexedPlayingTrackInfoTrackArtworkCountPayload, sizeof(struct IAPArtworkCount));
+                response->data[0].format = 0;
+                response->data[0].count  = (caps & IAPIPodStateTrackCapBits_HasAlbumArts) ? swap_16(1) : 0;
+                return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
             } break;
             default:
                 warn("invalid request type 0x%02" PRIX8, request->type);
@@ -755,35 +975,54 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             response_span->ptr = NULL;
             return 0;
         } break;
+        case IAPExtendedInterfaceCommandID_RequestProtocolVersion: {
+            uint8_t* payload = iap_span_alloc(response_span, 2);
+            check_ret(payload != NULL, -IAPAckStatus_ECommandFailed);
+            payload[0] = 1;
+            payload[1] = 14;
+            return IAPExtendedInterfaceCommandID_ReturnProtocolVersion;
+        } break;
+        case IAPExtendedInterfaceCommandID_RequestIPodName: {
+            const int32_t ret = handle_command(ctx, IAPLingoID_General, IAPGeneralCommandID_RequestIPodName, request_span, response_span);
+            return ret == IAPGeneralCommandID_ReturnIPodName ? IAPExtendedInterfaceCommandID_ReturnIPodName : ret;
+        } break;
         case IAPExtendedInterfaceCommandID_ResetDBSelection: {
+            check_ret(iap_platform_db_reset(ctx, 0), -IAPAckStatus_ECommandFailed);
+            return ipod_ack_ext(command, IAPAckStatus_Success, response_span);
+        } break;
+        case IAPExtendedInterfaceCommandID_SelectDBRecord: {
+            read_request(IAPSelectDBRecord);
+            check_ret(iap_platform_db_select(ctx, request->type, swap_32(request->index)), -IAPAckStatus_EBadParameter);
             return ipod_ack_ext(command, IAPAckStatus_Success, response_span);
         } break;
         case IAPExtendedInterfaceCommandID_GetNumberCategorizedDBRecords: {
             read_request(IAPGetNumberCategorizedDBRecordsPayload);
-            uint32_t count;
-            switch(request->type) {
-            case IAPDatabaseType_Playlist: {
-                /* TODO: implement platform callback */
-                count = 99;
-            } break;
-            case IAPDatabaseType_Track: {
-                struct IAPPlatformPlayStatus status;
-                check_ret(iap_platform_get_play_status(ctx, &status), -IAPAckStatus_ECommandFailed);
-                /* track_count is invalid while stopped.
-                 * return non-zero dummy value in this case, because reporting zero tracks
-                 * may cause empty library error. */
-                /* TODO: maybe add dedicated platform callback? */
-                count = status.state == IAPIPodStatePlayStatus_PlaybackStopped ? 99 : status.track_count;
-            } break;
-            default: {
-                warn("unsupported type 0x%02" PRIX8, request->type);
-                count = 0;
-            } break;
-            }
-
+            uint32_t count = 0;
+            check_ret(iap_platform_db_get_count(ctx, request->type, &count), -IAPAckStatus_EBadParameter);
             alloc_response(IAPReturnNumberCategorizedDBRecordsPayload);
             response->count = swap_32(count);
             return IAPExtendedInterfaceCommandID_ReturnNumberCategorizedDBRecords;
+        } break;
+        case IAPExtendedInterfaceCommandID_RetrieveCategorizedDatabaseRecords: {
+            read_request(IAPRetrieveCategorizedDatabaseRecordsPayload);
+            const uint32_t start       = swap_32(request->index);
+            const uint32_t req_count   = swap_32(request->count);
+            uint32_t       total_count = 0;
+            check_ret(iap_platform_db_get_count(ctx, request->type, &total_count), -IAPAckStatus_EBadParameter);
+            check_ret(req_count != 0 && start < total_count, -IAPAckStatus_EBadParameter);
+
+            const uint32_t avail      = total_count - start;
+            const uint32_t send_count = (req_count == 0xFFFFFFFFu || req_count > avail) ? avail : req_count;
+            check_ret(write_db_record_payload(ctx, request->type, start, response_span), -IAPAckStatus_ECommandFailed);
+
+            ctx->db_retrieve_type      = request->type;
+            ctx->db_retrieve_index     = start + 1;
+            ctx->db_retrieve_remaining = send_count - 1;
+            ctx->db_retrieve_trans_id  = ctx->handling_trans_id;
+            if(ctx->db_retrieve_remaining > 0) {
+                ctx->on_send_complete = send_db_record_cb;
+            }
+            return IAPExtendedInterfaceCommandID_ReturnCategorizedDatabaseRecords;
         } break;
         case IAPExtendedInterfaceCommandID_GetPlayStatus: {
             struct IAPPlatformPlayStatus status;
@@ -841,13 +1080,17 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPExtendedInterfaceCommandID_PlayCurrentSelection: {
             read_request(IAPPlayCurrentSelectionPayload);
+            ctx->db_retrieve_remaining = 0;
+            if(ctx->on_send_complete == send_db_record_cb) {
+                ctx->on_send_complete = NULL;
+            }
             const struct IAPPlatformPendingControl pending = {
                 .req_command = command,
                 .ack_command = IAPExtendedInterfaceCommandID_IPodAck,
                 .trans_id    = ctx->handling_trans_id,
                 .lingo       = lingo,
             };
-            iap_platform_control(ctx, IAPPlatformControl_Play, pending);
+            iap_platform_db_play_selection(ctx, swap_32(request->track_index), pending);
             response_span->ptr = NULL;
             return 0;
         } break;
@@ -865,8 +1108,8 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 {IAPPlayControlCode_Prev, IAPPlatformControl_Prev},
                 {IAPPlayControlCode_Play, IAPPlatformControl_Play},
                 {IAPPlayControlCode_Pause, IAPPlatformControl_Pause},
-                {IAPPlayControlCode_NextChapter, IAPPlatformControl_Next},
-                {IAPPlayControlCode_PrevChapter, IAPPlatformControl_Prev},
+                {IAPPlayControlCode_NextChapter, IAPPlatformControl_NextAlbum},
+                {IAPPlayControlCode_PrevChapter, IAPPlatformControl_PrevAlbum},
                 {IAPPlayControlCode_ResumeIPod, -1},
             };
             int control = -1;
@@ -896,7 +1139,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPExtendedInterfaceCommandID_SetShuffle: {
             read_request(IAPSetShufflePayload);
-            check_ret(iap_platform_set_shuffle_setting(ctx, request->mode), -IAPAckStatus_ECommandFailed);
+            check_ret(iap_platform_set_shuffle_setting(ctx, request->mode, request->restore_on_exit != 0), -IAPAckStatus_ECommandFailed);
             return ipod_ack_ext(command, IAPAckStatus_Success, response_span);
         } break;
         case IAPExtendedInterfaceCommandID_GetRepeat: {
@@ -906,12 +1149,19 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPExtendedInterfaceCommandID_SetRepeat: {
             read_request(IAPSetRepeatPayload);
-            check_ret(iap_platform_set_repeat_setting(ctx, request->mode), -IAPAckStatus_ECommandFailed);
+            check_ret(iap_platform_set_repeat_setting(ctx, request->mode, request->restore_on_exit != 0), -IAPAckStatus_ECommandFailed);
             return ipod_ack_ext(command, IAPAckStatus_Success, response_span);
         } break;
         case IAPExtendedInterfaceCommandID_SetDisplayImage: {
             /* TODO: pass downloaded image to user */
             return ipod_ack_ext(command, IAPAckStatus_Success, response_span);
+        } break;
+        case IAPExtendedInterfaceCommandID_GetMonoDisplayImageLimits: {
+            alloc_response(IAPReturnMonoDisplayImageLimitsPayload);
+            response->max_width    = swap_16(320);
+            response->max_height   = swap_16(240);
+            response->pixel_format = IAPArtworkPixelFormats_Mono;
+            return IAPExtendedInterfaceCommandID_ReturnMonoDisplayImageLimits;
         } break;
         case IAPExtendedInterfaceCommandID_GetNumPlayingTracks: {
             struct IAPPlatformPlayStatus status;
@@ -925,16 +1175,115 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             check_ret(iap_platform_set_playing_track(ctx, swap_32(request->index)), -IAPAckStatus_ECommandFailed);
             return ipod_ack_ext(command, IAPAckStatus_Success, response_span);
         } break;
+        case IAPExtendedInterfaceCommandID_GetTrackArtworkTimes: {
+            read_request(IAPGetTrackArtworkTimesPayload);
+            const uint16_t req_count = swap_16(request->artwork_count);
+            const uint16_t count     = req_count > 1 ? 1 : req_count;
+            /* response span is not word-aligned: never store through a
+             * uint32_t pointer here (data abort on ARM7TDMI / PP502x) */
+            uint8_t* offsets = iap_span_alloc(response_span, sizeof(uint32_t) * count);
+            check_ret(offsets != NULL, -IAPAckStatus_ECommandFailed);
+            memset(offsets, 0, sizeof(uint32_t) * count);
+            return IAPExtendedInterfaceCommandID_RetTrackArtworkTimes;
+        } break;
         case IAPExtendedInterfaceCommandID_SelectSortDBRecord: {
-            /* ignored */
+            read_request(IAPSelectDBRecord);
+            check_ret(iap_platform_db_select(ctx, request->type, swap_32(request->index)), -IAPAckStatus_EBadParameter);
             return ipod_ack_ext(command, IAPAckStatus_Success, response_span);
+        } break;
+        case IAPExtendedInterfaceCommandID_ResetDBSelectionHierarchy: {
+            read_request(IAPResetDBSelectionHierarchyPayload);
+            check_ret(iap_platform_db_reset(ctx, request->selection), -IAPAckStatus_EBadParameter);
+            return ipod_ack_ext(command, IAPAckStatus_Success, response_span);
+        } break;
+        case IAPExtendedInterfaceCommandID_GetDBITunesInfo: {
+            read_request(IAPGetDBITunesInfoPayload);
+            switch(request->metadata_type) {
+            case IAPITunesMetadataType_UID: {
+                alloc_response(IAPRetDBITunesInfoUIDPayload);
+                response->metadata_type = request->metadata_type;
+                memcpy(response->uid, "ROCKWHEL", sizeof(response->uid));
+            } break;
+            case IAPITunesMetadataType_LastSyncDate: {
+                alloc_response(IAPRetDBITunesInfoLastSyncDatePayload);
+                response->metadata_type = request->metadata_type;
+                response->seconds       = 0;
+                response->minute        = 0;
+                response->hour          = 0;
+                response->day           = 1;
+                response->month         = 1;
+                response->year          = swap_16(2026);
+            } break;
+            case IAPITunesMetadataType_AudioTrackCount: {
+                uint32_t count = 0;
+                iap_platform_db_get_count(ctx, IAPDatabaseType_Track, &count);
+                alloc_response(IAPRetDBITunesInfoCountPayload);
+                response->metadata_type = request->metadata_type;
+                response->count         = swap_32(count);
+            } break;
+            case IAPITunesMetadataType_AudiobookCount: {
+                uint32_t count = 0;
+                iap_platform_db_get_count(ctx, IAPDatabaseType_Audiobook, &count);
+                alloc_response(IAPRetDBITunesInfoCountPayload);
+                response->metadata_type = request->metadata_type;
+                response->count         = swap_32(count);
+            } break;
+            case IAPITunesMetadataType_VideoTrackCount:
+            case IAPITunesMetadataType_PhotoCount: {
+                alloc_response(IAPRetDBITunesInfoCountPayload);
+                response->metadata_type = request->metadata_type;
+                response->count         = 0;
+            } break;
+            default:
+                return -IAPAckStatus_EBadParameter;
+            }
+            return IAPExtendedInterfaceCommandID_RetDBITunesInfo;
         } break;
         case IAPExtendedInterfaceCommandID_GetColorDisplayImageLimits: {
             alloc_response(IAPColorDisplayImageLimit);
-            response->max_width    = 0;
-            response->max_height   = 0;
+            response->max_width    = swap_16(320);
+            response->max_height   = swap_16(240);
             response->pixel_format = IAPArtworkPixelFormats_RGB565LE;
             return IAPExtendedInterfaceCommandID_ReturnColorDisplayImageLimits;
+        } break;
+        case IAPExtendedInterfaceCommandID_GetArtworkTimes: {
+            uint8_t id_type = 0;
+            check_ret(iap_span_read_8(request_span, &id_type), -IAPAckStatus_EBadParameter);
+            if(id_type == IAPGetArtworkTrackIDType_UID) {
+                const struct {
+                    uint8_t  uid[8];
+                    uint16_t format_id;
+                    uint16_t artwork_index;
+                    uint16_t artwork_count;
+                } __attribute__((packed))* uid_req = iap_span_read(request_span, 14);
+                check_ret(uid_req != NULL, -IAPAckStatus_EBadParameter);
+                const uint16_t req_count = swap_16(uid_req->artwork_count);
+                const uint16_t count     = req_count > 1 ? 1 : req_count;
+                struct IAPRetArtworkTimesUIDPayload* resp = iap_span_alloc(response_span, sizeof(*resp) + sizeof(uint32_t) * count);
+                check_ret(resp != NULL, -IAPAckStatus_EOutOfResource);
+                resp->id_type = id_type;
+                memcpy(resp->uid, uid_req->uid, sizeof(resp->uid));
+                memset(resp->offsets_ms, 0, sizeof(uint32_t) * count);
+                return IAPExtendedInterfaceCommandID_RetArtworkTimes;
+            } else if(id_type == IAPGetArtworkTrackIDType_PlaybackListIndex ||
+                      id_type == IAPGetArtworkTrackIDType_DatabaseIndex) {
+                const struct {
+                    uint32_t index;
+                    uint16_t format_id;
+                    uint16_t artwork_index;
+                    uint16_t artwork_count;
+                } __attribute__((packed))* idx_req = iap_span_read(request_span, 10);
+                check_ret(idx_req != NULL, -IAPAckStatus_EBadParameter);
+                const uint16_t req_count = swap_16(idx_req->artwork_count);
+                const uint16_t count     = req_count > 1 ? 1 : req_count;
+                struct IAPRetArtworkTimesIndexPayload* resp = iap_span_alloc(response_span, sizeof(*resp) + sizeof(uint32_t) * count);
+                check_ret(resp != NULL, -IAPAckStatus_EOutOfResource);
+                resp->id_type = id_type;
+                resp->index   = idx_req->index;
+                memset(resp->offsets_ms, 0, sizeof(uint32_t) * count);
+                return IAPExtendedInterfaceCommandID_RetArtworkTimes;
+            }
+            return -IAPAckStatus_EBadParameter;
         } break;
         }
         break;
@@ -955,6 +1304,60 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             response_span->ptr = NULL; /* no response */
             return 0;
         } break;
+        case IAPDigitalAudioCommandID_SetVideoDelay: {
+            read_request(IAPSetVideoDelayPayload);
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPDigitalAudioCommandID_IPodAck);
+        } break;
+        }
+        break;
+    case IAPLingoID_Storage:
+        switch(command) {
+        case IAPStorageCommandID_GetIPodCaps: {
+            alloc_response(IAPIPodRetIPodCapsPayload);
+            response->total_space    = swap_64(64ULL * 1024ULL * 1024ULL * 1024ULL);
+            response->max_file_size  = swap_32(1024U * 1024U);
+            response->max_write_size = swap_16(512U);
+            memset(response->reserved, 0, sizeof(response->reserved));
+            response->major_version  = 1;
+            response->minor_version  = 2;
+            return IAPStorageCommandID_RetIPodCaps;
+        } break;
+        case IAPStorageCommandID_GetIPodFreeSpace: {
+            alloc_response(IAPRetIPodFreeSpacePayload);
+            response->free_space = swap_64(16ULL * 1024ULL * 1024ULL * 1024ULL);
+            return IAPStorageCommandID_RetIPodFreeSpace;
+        } break;
+        case IAPStorageCommandID_OpenIPodFeatureFile: {
+            alloc_response(IAPRetIPodFileHandlePayload);
+            response->handle = 0;
+            return IAPStorageCommandID_RetIPodFileHandle;
+        } break;
+        case IAPStorageCommandID_WriteIPodFileData: {
+            read_request(IAPWriteIPodFileDataPayload);
+            alloc_response(IAPStorageIPodAckPayload);
+            response->status = IAPAckStatus_Success;
+            response->id     = (uint8_t)command;
+            response->handle = request->handle;
+            return IAPStorageCommandID_IPodAck;
+        } break;
+        case IAPStorageCommandID_CloseIPodFile: {
+            read_request(IAPCloseIPodFilePayload);
+            alloc_response(IAPStorageIPodAckPayload);
+            response->status = IAPAckStatus_Success;
+            response->id     = (uint8_t)command;
+            response->handle = request->handle;
+            return IAPStorageCommandID_IPodAck;
+        } break;
+        case IAPStorageCommandID_AccessoryAck: {
+            read_request(IAPStorageAccessoryAckPayload);
+            response_span->ptr = NULL;
+            return 0;
+        } break;
+        case IAPStorageCommandID_RetAccessoryCaps: {
+            read_request(IAPStorageRetAccessoryCapsPayload);
+            response_span->ptr = NULL;
+            return 0;
+        } break;
         }
         break;
     }
@@ -973,24 +1376,58 @@ static int32_t handle_in_connected(struct IAPContext* ctx, uint8_t lingo, uint16
     switch(lingo) {
     case IAPLingoID_General:
         switch(command) {
+        case IAPGeneralCommandID_Identify: {
+            ctx->phase = IAPPhase_Authed;
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
         case IAPGeneralCommandID_IdentifyDeviceLingoes: {
             read_request(IAPIdentifyDeviceLingoesPayload);
             switch(swap_32(request->options)) {
             case IAPIdentifyDeviceLingoesOptions_NoAuth:
-                break;
             case IAPIdentifyDeviceLingoesOptions_DeferAuth:
-                warn("unsupported option 0x%04" PRIX32, swap_32(request->options));
-                return -IAPAckStatus_EBadParameter;
+                ctx->phase = IAPPhase_Authed;
+                break;
             case IAPIdentifyDeviceLingoesOptions_ImmediateAuth:
                 ctx->on_send_complete = transition_idps_to_auth_cb;
                 break;
+            default:
+                warn("unsupported option 0x%04" PRIX32, swap_32(request->options));
+                return -IAPAckStatus_EBadParameter;
             }
             return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
         } break;
         case IAPGeneralCommandID_StartIDPS: {
-            ctx->phase = IAPPhase_IDPS;
+            ctx->db_retrieve_remaining = 0;
+            ctx->artwork_trans_id      = -1;
+            ctx->idps_samprs_count     = 0;
+            ctx->on_send_complete      = NULL;
+            ctx->phase                 = IAPPhase_IDPS;
             return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
         } break;
+        case IAPGeneralCommandID_RequestExtendedInterfaceMode:
+        case IAPGeneralCommandID_EnterExtendedInterfaceMode:
+        case IAPGeneralCommandID_ExitExtendedInterfaceMode:
+        case IAPGeneralCommandID_RequestIPodName:
+        case IAPGeneralCommandID_RequestIPodSoftwareVersion:
+        case IAPGeneralCommandID_RequestIPodSerialNum:
+        case IAPGeneralCommandID_RequestIPodModelNum:
+        case IAPGeneralCommandID_RequestLingoProtocolVersion:
+        case IAPGeneralCommandID_RequestTransportMaxPayloadSize:
+        case IAPGeneralCommandID_GetIPodOptions:
+        case IAPGeneralCommandID_GetIPodPreferences:
+        case IAPGeneralCommandID_SetIPodPreferences:
+        case IAPGeneralCommandID_GetUIMode:
+        case IAPGeneralCommandID_SetUIMode:
+        case IAPGeneralCommandID_GetIPodOptionsForLingo:
+        case IAPGeneralCommandID_GetSupportedEventNotification:
+        case IAPGeneralCommandID_SetAvailableCurrent:
+        case IAPGeneralCommandID_SetEventNotification:
+        case IAPGeneralCommandID_GetEventNotification:
+        case IAPGeneralCommandID_SetInternalBatteryChargingState:
+        case IAPGeneralCommandID_RequestApplicationLaunch:
+        case IAPGeneralCommandID_GetNowPlayingApplicationBundleName:
+        case IAPGeneralCommandID_GetLocalizationInfo:
+            return handle_command(ctx, lingo, command, request_span, response_span);
         }
         break;
     }
@@ -1001,8 +1438,39 @@ static int32_t handle_in_idps(struct IAPContext* ctx, uint8_t lingo, uint16_t co
     switch(lingo) {
     case IAPLingoID_General:
         switch(command) {
+        case IAPGeneralCommandID_StartIDPS: {
+            ctx->db_retrieve_remaining = 0;
+            ctx->artwork_trans_id      = -1;
+            ctx->idps_samprs_count     = 0;
+            ctx->on_send_complete      = NULL;
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
+        case IAPGeneralCommandID_RequestExtendedInterfaceMode:
+        case IAPGeneralCommandID_EnterExtendedInterfaceMode:
+        case IAPGeneralCommandID_ExitExtendedInterfaceMode:
+        case IAPGeneralCommandID_RequestIPodName:
+        case IAPGeneralCommandID_RequestIPodSoftwareVersion:
+        case IAPGeneralCommandID_RequestIPodSerialNum:
+        case IAPGeneralCommandID_RequestIPodModelNum:
+        case IAPGeneralCommandID_RequestLingoProtocolVersion:
+        case IAPGeneralCommandID_RequestTransportMaxPayloadSize:
+        case IAPGeneralCommandID_GetIPodOptions:
+        case IAPGeneralCommandID_GetIPodPreferences:
+        case IAPGeneralCommandID_SetIPodPreferences:
+        case IAPGeneralCommandID_GetUIMode:
+        case IAPGeneralCommandID_SetUIMode:
+        case IAPGeneralCommandID_GetIPodOptionsForLingo:
+        case IAPGeneralCommandID_GetSupportedEventNotification:
+        case IAPGeneralCommandID_SetAvailableCurrent:
+        case IAPGeneralCommandID_SetEventNotification:
+        case IAPGeneralCommandID_GetEventNotification:
+        case IAPGeneralCommandID_SetInternalBatteryChargingState:
+        case IAPGeneralCommandID_RequestApplicationLaunch:
+        case IAPGeneralCommandID_GetNowPlayingApplicationBundleName:
+        case IAPGeneralCommandID_GetLocalizationInfo:
+            return handle_command(ctx, lingo, command, request_span, response_span);
         case IAPGeneralCommandID_SetFIDTokenValues: {
-            const int ret = _iap_hanlde_set_fid_token_values(request_span, response_span);
+            const int ret = _iap_hanlde_set_fid_token_values(ctx, request_span, response_span);
             check_ret(ret == 0, ret);
             return IAPGeneralCommandID_AckFIDTokenValues;
         } break;
@@ -1017,7 +1485,7 @@ static int32_t handle_in_idps(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         }
         break;
     }
-    return iap_false;
+    return -IAPAckStatus_EUnknownID;
 }
 
 static IAPBool send_auth_challenge_sig_cb(struct IAPContext* ctx) {
@@ -1036,15 +1504,35 @@ static IAPBool send_sample_rate_caps_cb(struct IAPContext* ctx) {
     return iap_true;
 }
 
+static IAPBool apply_idps_samprs_cb(struct IAPContext* ctx) {
+    struct IAPSpan samprs = {
+        .ptr  = (uint8_t*)ctx->idps_samprs,
+        .size = ctx->idps_samprs_count * sizeof(ctx->idps_samprs[0]),
+    };
+    return iap_platform_on_acc_samprs_received(ctx, &samprs);
+}
+
 static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request_span, struct IAPSpan* response_span) {
     switch(lingo) {
     case IAPLingoID_General:
         switch(command) {
         case IAPGeneralCommandID_RetAccessoryAuthenticationInfo: {
-            read_request(IAPRetAccAuthInfoPayload2p0);
-            print("accessory cert %" PRIu8 "/%" PRIu8, request->cert_current_section_index, request->cert_max_section_index);
-            /* iap_platform_dump_hex(request->ptr, request->size); */
-            if(request->cert_current_section_index < request->cert_max_section_index) {
+            const struct IAPRetAccAuthInfoPayload* ver = iap_span_read(request_span, sizeof(*ver));
+            check_ret(ver != NULL, -IAPAckStatus_EBadParameter);
+            if(ver->protocol_major == 1) {
+                print("accessory auth 1.0");
+                ctx->on_send_complete = send_auth_challenge_sig_cb;
+                alloc_response(IAPAckAccAuthInfoPayload);
+                response->status = IAPAckAccAuthInfoStatus_Supported;
+                return IAPGeneralCommandID_AckAccessoryAuthenticationInfo;
+            }
+            const uint8_t* sec = iap_span_read(request_span, 2);
+            check_ret(sec != NULL, -IAPAckStatus_EBadParameter);
+            const uint8_t cur_sec = sec[0];
+            const uint8_t max_sec = sec[1];
+            print("accessory cert %" PRIu8 "/%" PRIu8, cur_sec, max_sec);
+            /* iap_platform_dump_hex(request_span->ptr, request_span->size); */
+            if(cur_sec < max_sec) {
                 return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
             } else {
                 ctx->on_send_complete = send_auth_challenge_sig_cb;
@@ -1061,14 +1549,15 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             response->status = IAPAckStatus_Success;
 
             ctx->phase            = IAPPhase_Authed;
-            ctx->on_send_complete = send_sample_rate_caps_cb;
+            ctx->on_send_complete = ctx->idps_samprs_count > 0 ? apply_idps_samprs_cb : send_sample_rate_caps_cb;
 
             return IAPGeneralCommandID_AckAccessoryAuthenticationStatus;
         } break;
         }
         break;
     }
-    return -IAPAckStatus_EUnknownID;
+    ctx->phase = IAPPhase_Authed;
+    return handle_command(ctx, lingo, command, request_span, response_span);
 }
 
 static int32_t build_ipod_ack_response(uint8_t lingo, uint16_t command, uint8_t status, struct IAPSpan* response_span) {
@@ -1118,7 +1607,32 @@ static int32_t build_ipod_ack_response(uint8_t lingo, uint16_t command, uint8_t 
     return ack_commmand_ids[lingo];
 }
 
+static IAPBool handle_packet(struct IAPContext* ctx, const uint8_t* data, size_t size);
+
 IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, const size_t size) {
+    /* the response is built in send_buf, which still holds the rest of a
+     * response that needs more reports (only at full speed, with 63-byte
+     * reports); a head unit that does not wait for it, as a Volvo XC40 does
+     * while records are streamed, would get both corrupted. Hold the
+     * request until that response has gone out. */
+    if(ctx->send_buf_sending_cursor < ctx->send_buf_sending_range_end) {
+        if(ctx->deferred_recv_size == 0 && size <= HID_BUFFER_SIZE) {
+            memcpy(ctx->deferred_recv_buf, data, size);
+            ctx->deferred_recv_size = size;
+            return iap_true;
+        }
+        warn("request arrived with one already deferred");
+    }
+    return handle_packet(ctx, data, size);
+}
+
+IAPBool _iap_feed_deferred_packet(struct IAPContext* ctx) {
+    const size_t size       = ctx->deferred_recv_size;
+    ctx->deferred_recv_size = 0;
+    return handle_packet(ctx, ctx->deferred_recv_buf, size);
+}
+
+static IAPBool handle_packet(struct IAPContext* ctx, const uint8_t* const data, const size_t size) {
     union {
         uint8_t  u8;
         uint16_t u16;
@@ -1172,12 +1686,55 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
     if(ctx->trans_id_support == TransIDUnknown) {
         check_ret(lingo == IAPLingoID_General, iap_false);
         if(command == IAPGeneralCommandID_StartIDPS) {
-            ctx->trans_id_support = TransIDSupported;
+            if(span.size == sizeof(uint16_t)) {
+                ctx->trans_id_support = TransIDSupported;
+            } else if(span.size == 0) {
+                ctx->trans_id_support  = TransIDNotSupported;
+                ctx->handling_trans_id = -1;
+            } else {
+                warn("unexpected StartIDPS size %zu", span.size);
+                return iap_false;
+            }
         } else if(command == IAPGeneralCommandID_IdentifyDeviceLingoes) {
+            if(span.size == sizeof(uint16_t) + sizeof(struct IAPIdentifyDeviceLingoesPayload)) {
+                ctx->trans_id_support = TransIDSupported;
+            } else if(span.size == sizeof(struct IAPIdentifyDeviceLingoesPayload)) {
+                ctx->trans_id_support  = TransIDNotSupported;
+                ctx->handling_trans_id = -1;
+            } else {
+                warn("unexpected IdentifyDeviceLingoes size %zu", span.size);
+                return iap_false;
+            }
+        } else if(command == IAPGeneralCommandID_Identify) {
+            if(span.size == sizeof(uint16_t) + sizeof(struct IAPIdentifyPayload) ||
+               span.size == sizeof(uint16_t) + sizeof(struct IAPIdentifyHighPowerPayload)) {
+                ctx->trans_id_support = TransIDSupported;
+            } else if(span.size == sizeof(struct IAPIdentifyPayload) ||
+                      span.size == sizeof(struct IAPIdentifyHighPowerPayload)) {
+                ctx->trans_id_support  = TransIDNotSupported;
+                ctx->handling_trans_id = -1;
+            } else {
+                warn("unexpected Identify size %zu", span.size);
+                return iap_false;
+            }
+        } else if(command == IAPGeneralCommandID_RequestLingoProtocolVersion ||
+                  command == IAPGeneralCommandID_GetIPodOptionsForLingo) {
+            if(span.size == sizeof(uint16_t) + sizeof(uint8_t)) {
+                ctx->trans_id_support = TransIDSupported;
+            } else if(span.size == sizeof(uint8_t)) {
+                ctx->trans_id_support  = TransIDNotSupported;
+                ctx->handling_trans_id = -1;
+            } else {
+                warn("unexpected command(%02X:%04X) size %zu", lingo, command, span.size);
+                return iap_false;
+            }
+        } else if(span.size == sizeof(uint16_t)) {
+            ctx->trans_id_support = TransIDSupported;
+        } else if(span.size == 0) {
             ctx->trans_id_support  = TransIDNotSupported;
             ctx->handling_trans_id = -1;
         } else {
-            warn("the first command(%02X:%04X) must be StartIDPS or IdentifyDeviceLingoes", lingo, command);
+            warn("unexpected initial command(%02X:%04X) size %zu", lingo, command, span.size);
             return iap_false;
         }
     }
@@ -1264,12 +1821,22 @@ IAPBool _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command
     size_t   payload_size = final_ptr - ptr;
 
     if(ctx->opts.enable_packet_dump) {
-        IAP_LOGF("==== dev ====");
-        struct IAPSpan payload_span = {
-            .ptr  = _iap_get_buffer_for_send_payload(ctx).ptr,
-            .size = payload_size,
-        };
-        _iap_dump_packet(lingo, command, trans_id, payload_span);
+        const IAPBool skip_db_mid =
+            lingo == IAPLingoID_ExtendedInterface &&
+            command == IAPExtendedInterfaceCommandID_ReturnCategorizedDatabaseRecords &&
+            ctx->db_retrieve_remaining > 0 && ctx->db_retrieve_index > 1;
+        const IAPBool skip_art_mid =
+            ((lingo == IAPLingoID_ExtendedInterface && command == IAPExtendedInterfaceCommandID_RetTrackArtworkData) ||
+             (lingo == IAPLingoID_DisplayRemote && command == IAPDisplayRemoteCommandID_RetTrackArtworkData)) &&
+            ctx->artwork_chunk_index > 0;
+        if(!skip_db_mid && !skip_art_mid) {
+            IAP_LOGF("==== dev ====");
+            struct IAPSpan payload_span = {
+                .ptr  = _iap_get_buffer_for_send_payload(ctx).ptr,
+                .size = payload_size,
+            };
+            _iap_dump_packet(lingo, command, trans_id, payload_span);
+        }
     }
 
 #define pack_8(val) \

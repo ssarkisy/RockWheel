@@ -233,6 +233,20 @@ static const char* strs_da[] = {
     entry(DigitalAudio, TrackNewAudioAttributes),
     entry(DigitalAudio, SetVideoDelay),
 };
+static const char* strs_storage[] = {
+    entry(Storage, IPodAck),
+    entry(Storage, GetIPodCaps),
+    entry(Storage, RetIPodCaps),
+    entry(Storage, RetIPodFileHandle),
+    entry(Storage, WriteIPodFileData),
+    entry(Storage, CloseIPodFile),
+    entry(Storage, GetIPodFreeSpace),
+    entry(Storage, RetIPodFreeSpace),
+    entry(Storage, OpenIPodFeatureFile),
+    entry(Storage, AccessoryAck),
+    entry(Storage, GetAccessoryCaps),
+    entry(Storage, RetAccessoryCaps),
+};
 
 #undef entry
 
@@ -255,7 +269,7 @@ static struct {
     entry(AccessoryEqualizer, NULL, 0),
     entry(Sports, NULL, 0),
     entry(DigitalAudio, strs_da, array_size(strs_da)),
-    entry(Storage, NULL, 0),
+    entry(Storage, strs_storage, array_size(strs_storage)),
     entry(IPodOut, NULL, 0),
     entry(Location, NULL, 0),
 };
@@ -292,14 +306,33 @@ const char* _iap_span_as_str(const struct IAPSpan* span) {
 }
 
 #if !defined(IAP_LOGF_MUTED)
+static void dump_unknown_payload(struct IAPSpan span) {
+    if(span.size == 0) {
+        return;
+    }
+    static const char hex[] = "0123456789ABCDEF";
+    char              hexbuf[64];
+    size_t            pos   = 0;
+    const size_t      limit = min(span.size, (size_t)16);
+    for(size_t i = 0; i < limit && pos + 3 < sizeof(hexbuf); i++) {
+        hexbuf[pos++] = ' ';
+        hexbuf[pos++] = hex[span.ptr[i] >> 4];
+        hexbuf[pos++] = hex[span.ptr[i] & 0xF];
+    }
+    hexbuf[pos] = '\0';
+    IAP_LOGF("  hex:%s", hexbuf);
+}
+
 void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct IAPSpan span) {
     const char* lingo_str   = _iap_lingo_str_or_null(lingo);
     const char* command_str = _iap_command_str_or_null(lingo, command);
     if(lingo_str == NULL) {
-        IAP_LOGF("?(0x%02" PRIX8 ") trans=%" PRIi32, lingo, trans_id);
+        IAP_LOGF("?(0x%02" PRIX8 "):0x%04" PRIX16 " trans=%" PRIi32 " len=%zu", lingo, command, trans_id, span.size);
+        dump_unknown_payload(span);
         return;
     } else if(command_str == NULL) {
-        IAP_LOGF("%s:?(0x%02" PRIX8 ") trans=%" PRIi32, lingo_str, command, trans_id);
+        IAP_LOGF("%s:?(0x%04" PRIX16 ") trans=%" PRIi32 " len=%zu", lingo_str, command, trans_id, span.size);
+        dump_unknown_payload(span);
         return;
     } else {
         IAP_LOGF("%s:%s trans=%" PRIi32, lingo_str, command_str, trans_id);
@@ -329,7 +362,12 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             IAP_LOGF("  serial=%s", _iap_span_as_str(&span));
         } break;
         case IAPGeneralCommandID_ReturnIPodModelNum: {
-            IAP_LOGF("  model=%s", _iap_span_as_str(&span));
+            uint32_t model_id = 0;
+            if(iap_span_read_32(&span, &model_id)) {
+                IAP_LOGF("  model_id=0x%08" PRIX32 " model=%s", model_id, _iap_span_as_str(&span));
+            } else {
+                IAP_LOGF("  model=%s", _iap_span_as_str(&span));
+            }
         } break;
         case IAPGeneralCommandID_RequestLingoProtocolVersion: {
             span_read(IAPRequestLingoProtocolVersionPayload);
@@ -364,7 +402,7 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             IAP_LOGF("  class=0x%02" PRIX8, payload->class_id);
         } break;
         case IAPGeneralCommandID_RetIPodPreferences: {
-            span_read(IAPSetIPodPreferencesPayload);
+            span_read(IAPRetIPodPreferencesPayload);
             IAP_LOGF("  class=0x%02X", payload->class_id);
             IAP_LOGF("  setting=0x%02X", payload->setting_id);
         } break;
@@ -516,6 +554,11 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPGeneralCommandID_GetIPodOptionsForLingo: {
             span_read(IAPGetIPodOptionsForLingoPayload);
             IAP_LOGF("  lingo=%s", _iap_lingo_str(payload->lingo_id));
+        } break;
+        case IAPGeneralCommandID_RetIPodOptionsForLingo: {
+            span_read(IAPRetIPodOptionsForLingoPayload);
+            IAP_LOGF("  lingo=%s", _iap_lingo_str(payload->lingo_id));
+            IAP_LOGF("  bits=0x%08" PRIX64, swap_64(payload->bits));
         } break;
         case IAPGeneralCommandID_RetSupportedEventNotification: {
             span_read(IAPRetSupportedEventNotificationPayload);
@@ -943,6 +986,27 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPExtendedInterfaceCommandID_ReturnNumberCategorizedDBRecords: {
             span_read(IAPReturnNumberCategorizedDBRecordsPayload);
             IAP_LOGF("  count=%" PRIu32, swap_32(payload->count));
+        } break;
+        case IAPExtendedInterfaceCommandID_SelectDBRecord:
+        case IAPExtendedInterfaceCommandID_SelectSortDBRecord: {
+            span_read(IAPSelectDBRecord);
+            IAP_LOGF("  type=0x%02" PRIX8 " index=%" PRId32, payload->type, (int32_t)swap_32(payload->index));
+        } break;
+        case IAPExtendedInterfaceCommandID_RetrieveCategorizedDatabaseRecords: {
+            span_read(IAPRetrieveCategorizedDatabaseRecordsPayload);
+            IAP_LOGF("  type=0x%02" PRIX8 " index=%" PRIu32 " count=%" PRIu32, payload->type, swap_32(payload->index), swap_32(payload->count));
+        } break;
+        case IAPExtendedInterfaceCommandID_ReturnCategorizedDatabaseRecords: {
+            span_read(IAPReturnCategorizedDatabaseRecordsPayload);
+            IAP_LOGF("  index=%" PRIu32 " str=%s", swap_32(payload->index), _iap_span_as_str(&span));
+        } break;
+        case IAPExtendedInterfaceCommandID_PlayCurrentSelection: {
+            span_read(IAPPlayCurrentSelectionPayload);
+            IAP_LOGF("  index=%" PRId32, (int32_t)swap_32(payload->track_index));
+        } break;
+        case IAPExtendedInterfaceCommandID_ResetDBSelectionHierarchy: {
+            span_read(IAPResetDBSelectionHierarchyPayload);
+            IAP_LOGF("  selection=%" PRIu8, payload->selection);
         } break;
         case IAPExtendedInterfaceCommandID_ReturnPlayStatus: {
             span_read(IAPExtendedRetPlayStatusPayload);

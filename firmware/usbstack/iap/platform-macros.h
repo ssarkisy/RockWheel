@@ -23,11 +23,28 @@
 #include "debug.h"
 
 #if DEBUG_ENABLE_INFO == 1
-#define IAP_LOGF(fmt, ...) logf("%lu " fmt, iap_debug_timestamp() __VA_OPT__(, __VA_ARGS__))
+#define IAP_LOGF(fmt, ...)                                              \
+    do {                                                                \
+        logf("%lu " fmt, iap_debug_timestamp() __VA_OPT__(, __VA_ARGS__)); \
+        iap_trace_logf("%lu " fmt,                                      \
+                       iap_debug_timestamp() __VA_OPT__(, __VA_ARGS__)); \
+    } while(0)
+#elif defined(IAP_TRACE)
+#define IAP_LOGF(fmt, ...)                                              \
+    iap_trace_logf("%lu " fmt, iap_debug_timestamp() __VA_OPT__(, __VA_ARGS__))
 #endif
 
 #if DEBUG_ENABLE_ERROR == 1
-#define IAP_ERRORF(fmt, ...) logf("%lu " fmt, iap_debug_timestamp() __VA_OPT__(, __VA_ARGS__))
+#define IAP_ERRORF(fmt, ...)                                            \
+    do {                                                                \
+        logf("%lu " fmt, iap_debug_timestamp() __VA_OPT__(, __VA_ARGS__)); \
+        iap_trace_logf("%lu ERR " fmt,                                  \
+                       iap_debug_timestamp() __VA_OPT__(, __VA_ARGS__)); \
+    } while(0)
+#elif defined(IAP_TRACE)
+#define IAP_ERRORF(fmt, ...)                                            \
+    iap_trace_logf("%lu ERR " fmt,                                      \
+                   iap_debug_timestamp() __VA_OPT__(, __VA_ARGS__))
 #endif
 
 #define IAP_ARTWORK_WIDTH  128

@@ -65,6 +65,10 @@ struct IAPContext {
     /* iap_feed_hid_report */
     uint8_t* hid_recv_buf;
     size_t   hid_recv_buf_cursor;
+    /* _iap_feed_packet: a request that arrived while a response spanning
+     * several reports was still going out, handled once it is sent */
+    uint8_t* deferred_recv_buf;
+    size_t   deferred_recv_size;
     /* _iap_send_packet, _iap_send_hid_reports */
     uint8_t* send_buf;
     size_t   send_buf_sending_cursor;
@@ -81,12 +85,20 @@ struct IAPContext {
     struct IAPContextButtons context_button_state;
     struct IAPPlatformArtwork    artwork;
     size_t                       artwork_cursor;
+    uint32_t                     db_retrieve_index;
+    uint32_t                     db_retrieve_remaining;
+    int32_t                      db_retrieve_trans_id;
     uint16_t                     trans_id;
     uint16_t                     artwork_chunk_index;
     int32_t                      artwork_trans_id;
     uint16_t                     artwork_data_command;
     uint8_t                      artwork_data_lingo;
+    uint8_t                      db_retrieve_type;
     uint8_t                      trans_id_support; /* TransIDSupport */
+    uint8_t                      ui_mode;          /* IAPUIMode */
+    uint32_t                     idps_samprs[8];   /* big-endian rates from IDPS FID 0x000E */
+    uint8_t                      idps_samprs_count;
+    uint64_t                     event_notification_mask;
     /* notification.c */
     /* DisplayRemote::SetRemoteEventNotification */
     uint32_t enabled_notifications_3;

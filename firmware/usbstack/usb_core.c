@@ -54,6 +54,7 @@
 #ifdef USB_ENABLE_IAP
 #include "usb_iap.h"
 #endif
+#include "iap-usb.h"
 
 /* include order matters, include driver header before usb_drv.h */
 #if CONFIG_USBOTG == USBOTG_DESIGNWARE
@@ -948,6 +949,8 @@ static void usb_core_set_address(uint8_t address)
 static int usb_core_do_set_config(uint8_t new_config)
 {
     logf("usb_core: SET_CONFIG %d to %d", usb_config, new_config);
+    iap_trace_logf("usb set_cfg %d->%d spd=%d", usb_config, new_config,
+                   usb_drv_port_speed());
 
     if(new_config > NUM_CONFIGS) {
         logf("usb_core: invalid config number");
@@ -1235,6 +1238,7 @@ static void do_bus_reset(void) {
 void usb_core_bus_reset(void)
 {
     logf("usb_core: bus reset");
+    iap_trace_logf("usb reset cfg=%d spd=%d", usb_config, usb_drv_port_speed());
     if(bus_reset_pending) {
         return;
     }
@@ -1401,6 +1405,14 @@ void usb_core_control_cancelled(void)
 }
 
 void usb_core_setup_received(struct usb_ctrlrequest* req) {
+#ifdef IAP_TRACE
+    /* HID SET_REPORT carries the iAP packets, which usb_iap traces itself */
+    if(!(req->bRequestType == 0x21 && req->bRequest == 0x09)) {
+        iap_trace_logf("usb setup %02X:%02X v=%04X i=%04X l=%u",
+                       req->bRequestType, req->bRequest, req->wValue,
+                       req->wIndex, req->wLength);
+    }
+#endif
     if(bus_reset_pending) {
         logf("usb_core: bus resetting tick=%lu", current_tick);
         return;
@@ -1439,6 +1451,10 @@ void usb_core_control_response(enum usb_control_response response, const void* d
     }
 
     if(response == USB_CONTROL_STALL) {
+        iap_trace_logf("usb STALL %02X:%02X v=%04X i=%04X",
+                       handling_request.bRequestType,
+                       handling_request.bRequest, handling_request.wValue,
+                       handling_request.wIndex);
         set_ep0_state(EP0_READY);
         usb_drv_stall(EP_CONTROL, true, true);
         restore_irq(oldlevel);

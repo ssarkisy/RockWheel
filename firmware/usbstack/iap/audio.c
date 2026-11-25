@@ -25,12 +25,13 @@
 #include "usb_drv.h"
 
 #include "../usb_iap.h"
+#include "audio.h"
 #include "buffer.h"
 #include "libiap/iap.h"
 #include "macros.h"
 #include "platform.h"
 
-static const unsigned long samprs[] = {
+static unsigned long samprs[] = {
     SAMPR_48,
     SAMPR_44,
     SAMPR_32,
@@ -63,11 +64,38 @@ static void sink_set_freq(uint16_t freq) {
 
     track_attrs_sent = true;
 
+    if(freq >= iap_pcm_sink.caps.num_samprs) {
+        freq = 0;
+    }
     set_freq = freq;
+    cur_freq = freq;
 
     struct IAPContext* ctx = _iap_acquire_ctx(true);
     check_act(iap_select_sampr(ctx, samprs[freq]), );
     _iap_release_ctx();
+}
+
+void iap_audio_configure_samprs(uint8_t sampr_mask) {
+    size_t count = 0;
+    if(sampr_mask & IAP_SAMPR_BIT_48) {
+        samprs[count++] = SAMPR_48;
+    }
+    if(sampr_mask & IAP_SAMPR_BIT_44) {
+        samprs[count++] = SAMPR_44;
+    }
+    if(sampr_mask & IAP_SAMPR_BIT_32) {
+        samprs[count++] = SAMPR_32;
+    }
+    if(count == 0) {
+        samprs[0] = SAMPR_48;
+        samprs[1] = SAMPR_44;
+        samprs[2] = SAMPR_32;
+        count     = 3;
+    }
+    iap_pcm_sink.caps.num_samprs   = count;
+    iap_pcm_sink.caps.default_freq = 0;
+    set_freq                       = 0;
+    cur_freq                       = 0;
 }
 
 static size_t calc_packet_size(uint8_t cur_sampr, uint8_t packet_count) {
@@ -81,10 +109,11 @@ static size_t calc_packet_size(uint8_t cur_sampr, uint8_t packet_count) {
      *   44100 * 4 / 1000 = 176.4
      *   => (9 * 176 + 180) + (...
      */
-    if(cur_sampr == 0) {
+    const unsigned long rate = cur_sampr < iap_pcm_sink.caps.num_samprs ? samprs[cur_sampr] : SAMPR_48;
+    if(rate == SAMPR_48) {
         /*48k*/
         return 192;
-    } else if(cur_sampr == 2) {
+    } else if(rate == SAMPR_32) {
         /*32k*/
         return 128;
     } else {
@@ -259,12 +288,12 @@ bool iap_audio_disable(void) {
 
 bool iap_audio_set_sampr(uint32_t sampr) {
     uint16_t freq = 0;
-    for(; freq < ARRAYLEN(samprs); freq += 1) {
+    for(; freq < iap_pcm_sink.caps.num_samprs; freq += 1) {
         if(samprs[freq] == sampr) {
             break;
         }
     }
-    check_act(freq < ARRAYLEN(samprs), return false);
+    check_act(freq < iap_pcm_sink.caps.num_samprs, return false);
 
     if(set_freq >= 0 && freq != set_freq) {
         /* Accessories should only set the frequency we requested via

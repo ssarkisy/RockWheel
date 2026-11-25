@@ -32,6 +32,8 @@
 #include "logf.h"
 #endif
 
+#include "iap-usb.h" /* IAP_TRACE, iap_trace_* */
+
 void          iap_lcd_scatter(const char* fmt, ...);
 unsigned long iap_debug_timestamp(void);
 void          iap_debug_reset_timestamp(void);

@@ -132,10 +132,9 @@ static const struct ReportSize* find_optimal_report_size(struct IAPContext* ctx,
 
 IAPBool _iap_send_next_report(struct IAPContext* ctx) {
     if(ctx->send_buf_sending_cursor >= ctx->send_buf_sending_range_end) {
-        if(ctx->on_send_complete != NULL) {
-            IAPOnSendComplete cb  = ctx->on_send_complete;
-            ctx->on_send_complete = NULL;
-            check_ret(cb(ctx), iap_false);
+        if(ctx->deferred_recv_size > 0) {
+            /* a request held back while the last response went out */
+            check_ret(_iap_feed_deferred_packet(ctx), iap_false);
         } else if(ctx->active_events[0].callback != NULL) {
             struct IAPActiveEvent event = ctx->active_events[0];
             /* shift queue */
@@ -146,6 +145,10 @@ IAPBool _iap_send_next_report(struct IAPContext* ctx) {
             ctx->active_events[i].callback = NULL;
             /* process event */
             check_ret(event.callback(ctx, &event), iap_false);
+        } else if(ctx->on_send_complete != NULL) {
+            IAPOnSendComplete cb  = ctx->on_send_complete;
+            ctx->on_send_complete = NULL;
+            check_ret(cb(ctx), iap_false);
         } else if(ctx->flushing_notifications) {
             check_ret(_iap_flush_notification(ctx), iap_false);
         }
