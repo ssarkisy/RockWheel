@@ -395,8 +395,8 @@ static const char *pane_name(const struct menu_item_ex *menu,
         case GO_TO_SHUFFLE_ALBUMS:
             return str(LANG_ALBUMS);
 #endif
-        case GO_TO_WPS: /* as get_wps_item_name() has them */
-            return str(audio_status() ? LANG_NOW_PLAYING_SHORT : LANG_RESUME);
+        case GO_TO_WPS: /* Now Playing, the music stopped too (root_menu.c) */
+            return str(LANG_NOW_PLAYING_SHORT);
         case GO_TO_MAINMENU:
             return str(LANG_SETTINGS_SHORT);
         case GO_TO_EXTRAS:

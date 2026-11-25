@@ -1045,16 +1045,35 @@ MENUITEM_RETURNVALUE(photos_item, ID2P(LANG_PHOTOS), GO_TO_PHOTOS,
                         item_callback, Icon_Plugin);
 #endif
 
-static char *get_wps_item_name(int selected_item, void * data,
+/* Now Playing, with the music stopped too, as on a stock iPod: there it goes
+   on with the song to resume (wpsscrn()) */
+#ifdef IPOD_VIDEO
+/* Beside the pane, in every theme: the short name of a language whose Now
+   Playing is cut there in one, which its ipodvideo text of
+   LANG_NOW_PLAYING_SHORT has, or else Now Playing itself; the photo's is
+   menu.c's pane_name(). Spoken in full */
+static char *get_wps_item_name(int selected_item, void *data,
                                char *buffer, size_t buffer_len)
 {
     (void)selected_item; (void)data; (void)buffer; (void)buffer_len;
-    if (audio_status())
-        return ID2P(LANG_NOW_PLAYING);
-    return ID2P(LANG_RESUME_PLAYBACK);
+    if (*str(LANG_NOW_PLAYING_SHORT))
+        return ID2P(LANG_NOW_PLAYING_SHORT);
+    return ID2P(LANG_NOW_PLAYING);
 }
-MENUITEM_RETURNVALUE_DYNTEXT(wps_item, GO_TO_WPS, item_callback, get_wps_item_name,
-                                NULL, NULL, Icon_Playback_menu);
+
+static int talk_wps_item(int selected_item, void *data)
+{
+    (void)selected_item; (void)data;
+    talk_id(LANG_NOW_PLAYING, false);
+    return 0;
+}
+MENUITEM_RETURNVALUE_DYNTEXT(wps_item, GO_TO_WPS, item_callback,
+                             get_wps_item_name, talk_wps_item, NULL,
+                             Icon_Playback_menu);
+#else
+MENUITEM_RETURNVALUE(wps_item, ID2P(LANG_NOW_PLAYING), GO_TO_WPS, item_callback,
+                     Icon_Playback_menu);
+#endif
 #ifdef HAVE_RECORDING
 MENUITEM_RETURNVALUE(rec, ID2P(LANG_RECORDING), GO_TO_RECSCREEN,
                         NULL, Icon_Recording);

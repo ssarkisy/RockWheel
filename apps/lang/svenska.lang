@@ -23613,19 +23613,22 @@
 </phrase>
 <phrase>
   id: LANG_NOW_PLAYING_SHORT
-  desc: the main menu's row for Now Playing on the iPod photo, beside the pane: a short name where Now Playing was cut there, else the same as Now Playing; spoken as Now Playing
+  desc: the main menu's row for Now Playing, beside the pane on the iPod photo and the iPod Video: a short name where Now Playing is cut there in a theme, else the same as Now Playing; spoken as Now Playing
   user: core
   <source>
     *: none
     ipodcolor: "Now Playing"
+    ipodvideo: "Now Playing"
   </source>
   <dest>
     *: none
     ipodcolor: "Spelas nu"
+    ipodvideo: "Spelas nu"
   </dest>
   <voice>
     *: none
     ipodcolor: ""
+    ipodvideo: ""
   </voice>
 </phrase>
 <phrase>
