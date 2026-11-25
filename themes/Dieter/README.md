@@ -53,7 +53,7 @@ Quiet and precise, with a little depth:
 ## On the iPod photo
 
 The same rules on 220x176: a margin of 14, a status line of 16 rows, rows of
-20 px in Inter SemiBold of 12 px, two-line rows of 32 with covers of 28 px;
+20 px in Inter SemiBold of 12 px, two-line rows of 32 with covers of 32 px;
 Now Playing's cover 96 px. The pane is beside the main menu alone, 110 px
 from column 110.
 

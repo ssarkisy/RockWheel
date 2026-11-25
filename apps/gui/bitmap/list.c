@@ -956,24 +956,26 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                 line_indent *= character_width;
         }
         /* the padding moves the text only, the selection stays full width;
-           a list with covers has its own in a theme that names one, for
-           every row, so that the rows without a cover start where the covers do */
-        line_indent += indent + (covers && ui_metric(UI_METRIC_ROW_COVER_INSET) ?
-                                 ui_metric(UI_METRIC_ROW_COVER_INSET)
-                                 : global_settings.list_text_padding);
-        /* an album's cover, or the note in its place, where the text would
-           start, the text after their column; at the right end right to
-           left, as the text starts there */
+           a list with covers has its own in a theme that names one, for its
+           rows without a cover */
+        const int row_start = line_indent + indent;
+        line_indent = row_start + (covers && ui_metric(UI_METRIC_ROW_COVER_INSET) ?
+                                   ui_metric(UI_METRIC_ROW_COVER_INSET)
+                                   : global_settings.list_text_padding);
+        /* an album's cover, or the note in its place, at the row's start and
+           as high as the row, the selection's bar beside it and the text
+           COVER_GAP after it; at the right end right to left, as the text
+           starts there */
         const fb_data *cover_pixels = NULL;
         const int cover = covers ? list->callback_get_cover(i, list->data,
                                                             &cover_pixels)
                                  : LIST_COVER_NONE;
         const int cover_x = VP_IS_RTL(list_text_vp) ?
-            list_text_vp->width - line_indent - LINE_COVER_SIZE : line_indent;
+            list_text_vp->width - row_start - LINE_COVER_SIZE : row_start;
         if (cover != LIST_COVER_NONE)
-            line_indent += LINE_COVER_SIZE + COVER_GAP;
+            line_indent = row_start + LINE_COVER_SIZE + COVER_GAP;
         /* in a list of covers, every row's bar the whole row's, as in a row
-           of two lines, with a cover in it at the same margin */
+           of two lines */
         linedes.bar_whole = covers;
         /* a playlist's or folder's mark, its name after its column */
         const int mark_x = line_indent;
@@ -1193,14 +1195,19 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                            list->lead_digit);
         if (cover != LIST_COVER_NONE)
         {
-            const int cover_y = list_info.y + (row_h - LINE_COVER_SIZE) / 2;
+            /* the row's whole height, over the bar's first columns; of a row
+               lower than the cover (Modern's and Neo's 35 on the Video), the
+               cover's top rows */
+            const int cover_h = MIN(LINE_COVER_SIZE, row_h);
+            const int cover_y = list_info.y + (row_h - cover_h) / 2;
             if (cover == LIST_COVER_UNSUPPORTED)
                 cover_caution_tile(display, list_info.x + cover_x, cover_y,
-                                   LINE_COVER_SIZE, false);
+                                   LINE_COVER_SIZE, cover_h, false);
             else if (cover == LIST_COVER_FOLDER)
-                line_draw_folder_tile(display, list_info.x + cover_x, cover_y);
+                line_draw_folder_tile(display, list_info.x + cover_x, cover_y,
+                                      cover_h);
             else
-                line_draw_cover(display, list_info.x + cover_x, cover_y,
+                line_draw_cover(display, list_info.x + cover_x, cover_y, cover_h,
                                 cover == LIST_COVER_PIXELS ? cover_pixels : NULL);
 #ifdef HAVE_LCD_COLOR
             const int radius = ui_metric(UI_METRIC_ROW_COVER_RADIUS);
@@ -1212,7 +1219,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                 if (is_selected)
                     display->set_background(linedes.line_color);
                 line_round_corners(display, list_info.x + cover_x, cover_y,
-                                   LINE_COVER_SIZE, LINE_COVER_SIZE, radius);
+                                   LINE_COVER_SIZE, cover_h, radius);
                 display->set_background(ground);
             }
 #endif

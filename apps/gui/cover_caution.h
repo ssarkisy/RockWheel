@@ -46,9 +46,9 @@ void cover_caution_render(struct gui_wps *gwps);
 /* Before it, with its refresh mode: the pane's place cleared for the skin
    drawn whole, after the caution drawn there */
 void cover_caution_before(struct gui_wps *gwps, unsigned refresh_mode);
-/* a row's cover tile (LINE_COVER_SIZE) or an album header's, of size, with
-   the "?" in the note's place */
+/* a row's cover tile (LINE_COVER_SIZE) or an album header's, size wide and
+   h high, with the "?" in the note's place */
 void cover_caution_tile(struct screen *display, int x, int y, int size,
-                        bool header);
+                        int h, bool header);
 
 #endif

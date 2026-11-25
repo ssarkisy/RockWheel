@@ -269,13 +269,14 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
                        const char *text, unsigned value_colour);
 /* An album's cover at x, y of a row: pixels of LINE_COVER_SIZE a side, or
    NULL for the note on a tile in its place, as an album without one has and
-   one not read yet. On the iPod photo's 220x176 28 px, in its rows of two
-   lines of 32, five of which fit its lists (ui_theme.c): two rows over it
-   and two under, as the Video's 32 have in its rows of 36 */
+   one not read yet. As high as a row of two lines, at the row's start, the
+   covers of rows one under another touching: the iPod photo's 32 in its rows
+   of 32, five of which fit its lists (ui_theme.c), the Video's 36 in rows of
+   36, the top 35 rows of it in Modern's and Neo's rows of 35 (h) */
 #if (LCD_WIDTH == 220) && (LCD_HEIGHT == 176)
-#define LINE_COVER_SIZE 28
-#else
 #define LINE_COVER_SIZE 32
+#else
+#define LINE_COVER_SIZE 36
 #endif
 /* A rectangle in colour on the viewport's ground, its corners rounded to
    radius r, their pixels mixed with the ground */
@@ -302,11 +303,11 @@ void line_draw_note(const unsigned char *alpha, int w, int h, int x, int y);
    the caller has just filled its place */
 void line_draw_note_rows(const unsigned char *alpha, int stride, int w, int h,
                          int x, int y);
-void line_draw_cover(struct screen *display, int x, int y,
+void line_draw_cover(struct screen *display, int x, int y, int h,
                      const fb_data *pixels);
 /* a folder's tile in a cover's place, as Playlists' rows with covers have
-   it: the folder's mark at its size, in the second lines' grey */
-void line_draw_folder_tile(struct screen *display, int x, int y);
+   it: the folder's mark at its size, in the second lines' grey; h rows of it */
+void line_draw_folder_tile(struct screen *display, int x, int y, int h);
 /* text in the font, the middle of its ink's box on the pixels' corner (cx,
    cy), in the foreground; each glyph from the font its letter comes from.
    by_mass: across by the middle of its ink's weight instead, the pixel

@@ -1764,40 +1764,42 @@ void line_draw_note_rows(const unsigned char *alpha, int stride, int w, int h,
 #endif
 }
 
-void line_draw_cover(struct screen *display, int x, int y,
+void line_draw_cover(struct screen *display, int x, int y, int h,
                      const fb_data *pixels)
 {
+    h = MIN(h, LINE_COVER_SIZE);
     if (pixels)
     {
         display->bitmap_part(pixels, 0, 0,
                              STRIDE(display->screen_type, LINE_COVER_SIZE,
                                     LINE_COVER_SIZE),
-                             x, y, LINE_COVER_SIZE, LINE_COVER_SIZE);
+                             x, y, LINE_COVER_SIZE, h);
         return;
     }
     /* as an album's header has it in its cover's place, smaller */
     const unsigned fg = display->get_foreground();
     display->set_foreground(ui_colour(UI_COLOUR_COVER_TILE));
     display->set_drawmode(DRMODE_SOLID);
-    display->fillrect(x, y, LINE_COVER_SIZE, LINE_COVER_SIZE);
+    display->fillrect(x, y, LINE_COVER_SIZE, h);
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (display->screen_type == SCREEN_MAIN)
     {
         const struct glyph *const g = glyph(GLYPH_SMALL_NOTE);
-        line_draw_note(g->alpha, g->w, g->h, x + (LINE_COVER_SIZE - g->w) / 2,
-                       y + (LINE_COVER_SIZE - g->h) / 2);
+        line_draw_note(g->alpha, g->w, MIN(g->h, h), x + (LINE_COVER_SIZE - g->w) / 2,
+                       y + MAX(h - g->h, 0) / 2);
     }
 #endif
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);
 }
 
-void line_draw_folder_tile(struct screen *display, int x, int y)
+void line_draw_folder_tile(struct screen *display, int x, int y, int h)
 {
+    h = MIN(h, LINE_COVER_SIZE);
     const unsigned fg = display->get_foreground();
     display->set_foreground(ui_colour(UI_COLOUR_COVER_TILE));
     display->set_drawmode(DRMODE_SOLID);
-    display->fillrect(x, y, LINE_COVER_SIZE, LINE_COVER_SIZE);
+    display->fillrect(x, y, LINE_COVER_SIZE, h);
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (display->screen_type == SCREEN_MAIN)
     {
@@ -1806,7 +1808,7 @@ void line_draw_folder_tile(struct screen *display, int x, int y)
         lcd_set_foreground(LIST_VALUE_COLOUR);
         lcd_alpha_bitmap_part(g->alpha, 0, g->frame * g->h, g->w,
                               x + (LINE_COVER_SIZE - g->w) / 2,
-                              y + (LINE_COVER_SIZE - g->h) / 2, g->w, g->h);
+                              y + MAX(h - g->h, 0) / 2, g->w, MIN(g->h, h));
     }
 #endif
     display->set_foreground(fg);

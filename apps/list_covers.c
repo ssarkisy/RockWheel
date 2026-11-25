@@ -18,7 +18,7 @@
 
 /* The covers of albums in their rows: list_covers.h. Each is the one Cover
  * Flow shows, Finder's or the one Updating Library made for an album copied
- * outside Finder, shrunk from its slide to 32 px by averaging the pixels each
+ * outside Finder, shrunk from its slide by averaging the pixels each
  * covers, made at Updating Library into list_covers.dat: a sector a cover, in
  * the order of Albums by year, after an index of the albums by their numbers
  * in the table of years. Read by the file's sectors on the disk, found once
@@ -64,9 +64,9 @@
 #define SIDE        LINE_COVER_SIZE
 #define COVER_BYTES (SIDE * SIDE * (int)sizeof(fb_data))
 /* A cover's place in the file, read as it is: its pixels in whole sectors,
-   as the disk is read by them (file_read_mapped()), the rest zeros; 2 KB,
-   which a cover of 32 px fills (the iPod photo's of 28 has 480 B over). A
-   file of covers of another side is made again (the header's side) */
+   as the disk is read by them (file_read_mapped()), the rest zeros: the iPod
+   photo's 32 px fill 2 KB, the Video's 36 px 3 KB with 480 B over. A file of
+   covers of another side is made again (the header's side) */
 #define SLOT_SIZE   ((COVER_BYTES + 511) / 512 * 512)
 #define NO_SLOT     0xffff
 /* in the slots kept in memory, an album without one whose picture isn't
@@ -120,7 +120,7 @@ static unsigned char *read_aligned(unsigned char *p)
     return (unsigned char *)ALIGN_UP((uintptr_t)p, READ_ALIGN);
 }
 
-#define KEPT        256   /* covers kept, 512 KB of 32 px: what some 40 screens showed */
+#define KEPT        256   /* covers kept, 512 KB of 32 px, 648 KB of 36: what some 40 screens showed */
 #define STRETCH     16    /* covers the making writes at once */
 /* Covers a read takes at most, those in a row in the file, 8 KB: each read
    its own turn of the reader, which gives way to the UI between them, as

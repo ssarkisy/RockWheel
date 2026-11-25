@@ -24,7 +24,7 @@
 
 /* The covers of albums at the left of their rows in Music's lists of albums,
    as on an iPod classic: Settings > Appearance > Covers in Lists. Updating
-   Library makes them, 32 px a side (LINE_COVER_SIZE, 28 on the iPod photo), from Cover Flow's
+   Library makes them, 36 px a side (LINE_COVER_SIZE, 32 on the iPod photo), from Cover Flow's
    slides, into a file of their own in the order of Albums by year, so that a
    screen's covers are one short read. Kept in memory taken as the setting is
    turned on without music, and let go as it's turned off: none is taken while

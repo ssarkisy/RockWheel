@@ -2166,10 +2166,10 @@ static void fill_rounded(struct screen *display, int x, int y, int w, int h,
 static void draw_field(struct screen *display)
 {
     const int line = font_get(field_vp.font)->height;
-    /* as wide as the selected row; in a rounded theme from where the covers
-       of the results' rows stand, or their text where the theme has no place
-       of its own for the covers, to where the text ends. Right to left the
-       covers are at the other end */
+    /* as wide as the selected row; in a rounded theme from where a list of
+       covers' rows without one start (UI_METRIC_ROW_COVER_INSET), or their
+       text where the theme has no place of its own for them, to where the
+       text ends. Right to left from the other end */
     const int pad = global_settings.list_text_padding;
     const int inset = ui_metric(UI_METRIC_ROW_COVER_INSET);
     const int covers = ROUNDED ? (inset ? inset : pad) : 6;

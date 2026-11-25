@@ -655,17 +655,17 @@ void cover_caution_render(struct gui_wps *gwps)
 }
 
 void cover_caution_tile(struct screen *display, int x, int y, int size,
-                        bool header)
+                        int h, bool header)
 {
     const struct look *lk = look();
     const struct mark *m = header ? &lk->header : &lk->row;
     const unsigned fg = display->get_foreground();
     display->set_foreground(ui_colour(UI_COLOUR_COVER_TILE));
     display->set_drawmode(DRMODE_SOLID);
-    display->fillrect(x, y, size, size);
+    display->fillrect(x, y, size, h);
     if (display->screen_type == SCREEN_MAIN)
-        line_draw_note_rows(m->ink, m->w, m->w, m->h, x + (size - m->w) / 2,
-                            y + (size - m->h) / 2);
+        line_draw_note_rows(m->ink, m->w, m->w, MIN(m->h, h), x + (size - m->w) / 2,
+                            y + MAX(h - m->h, 0) / 2);
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);
 }
@@ -693,8 +693,8 @@ void cover_caution_before(struct gui_wps *gwps, unsigned refresh_mode)
     (void)gwps; (void)refresh_mode;
 }
 void cover_caution_tile(struct screen *display, int x, int y, int size,
-                        bool header)
+                        int h, bool header)
 {
-    (void)display; (void)x; (void)y; (void)size; (void)header;
+    (void)display; (void)x; (void)y; (void)size; (void)h; (void)header;
 }
 #endif

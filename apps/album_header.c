@@ -844,7 +844,7 @@ static void draw_cover(struct screen *display, int x, int y)
     /* one whose picture isn't shown: the "?" in the note's place */
     if (cover.reason && cover_caution_on())
     {
-        cover_caution_tile(display, x, y, COVER_SIZE, true);
+        cover_caution_tile(display, x, y, COVER_SIZE, COVER_SIZE, true);
         line_round_corners(display, x, y, COVER_SIZE, COVER_SIZE, radius);
         return;
     }

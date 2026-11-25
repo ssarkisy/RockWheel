@@ -111,7 +111,7 @@ The iPod photo's 220x176 screen has Neo's own skins, in `220x176/.rockbox`,
 written by the same script with the 320x240 ones by the same rules (its
 `PHOTO` layout): a status line of 16 px with its hairline; rows of 20 px in
 Inter SemiBold of 12 px (`15-Inter-SemiBold`), 32 px for a row of two lines,
-with covers of 28 px (`LINE_COVER_SIZE`); Now Playing's cover 96 px, the details beside it in
+with covers of 32 px as high as it (`LINE_COVER_SIZE`); Now Playing's cover 96 px, the details beside it in
 the same fonts a step smaller. Its sides are narrower, for the narrower
 screen: the selection 2 px from the screen's edges, the names and the
 chevrons 4 px inside it, the status line 4 px from the edges, and the

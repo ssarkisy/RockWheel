@@ -120,8 +120,8 @@ static const struct ui_theme ui_themes[] = {
            are: the list in 17 px Bold in rows of 20, eight of them under
            the status bar of 16; a row of two lines 32, the name's whole
            cell over the second line's 14, five of them, with a cover of
-           28 px (LINE_COVER_SIZE), two rows over it and two under: whole
-           rows of either kind in the list's 160 */
+           32 px (LINE_COVER_SIZE) as high as the row: whole rows of either
+           kind in the list's 160 */
         .cover_colours = true,
         .font = {
             [UI_FONT_LIST]          = FONT_DIR "/" UI_CLASSIC_FONT ".fnt",
@@ -157,7 +157,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SUBLINE_GAP]          = 1,
             [UI_METRIC_NAME_TEXT_DY]         = 0,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
-            /* the cover on columns 4 to 31, the text's cell from 39 */
+            /* the cover on columns 0 to 31, the text's cell from 39 */
             [UI_METRIC_ROW_COVER_GAP]        = 7,
             /* three rows, 51 px: the cover 44 px, 4 under their top; the
                texts' three lines 49 px from 2 down */
@@ -206,7 +206,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SUBLINE_GAP]          = 3,
             [UI_METRIC_NAME_TEXT_DY]         = 2,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
-            [UI_METRIC_ROW_COVER_GAP]        = 8,
+            /* the cover on columns 0 to 35, the text's cell from 45 */
+            [UI_METRIC_ROW_COVER_GAP]        = 9,
             [UI_METRIC_HEADER_COVER_TOP]     = 6,
             [UI_METRIC_HEADER_COVER_GAP]     = 10,
             [UI_METRIC_HEADER_TEXT_MARGIN]   = 6,
@@ -356,8 +357,9 @@ static const struct ui_theme ui_themes[] = {
         },
         .metric = {
             [UI_METRIC_ROW_HEIGHT]           = 20,
-            /* the rows' text 7 px from the list's edge, a cover 3 px and
-               its text 6 px after it: the bar runs from edge to edge */
+            /* the rows' text 7 px from the list's edge, a row's cover at the
+               edge and its text 5 px after it: the bar runs from edge to
+               edge */
             [UI_METRIC_TEXT_INSET]           = 7,
             [UI_METRIC_INITIAL_HEIGHT]       = 64,
             [UI_METRIC_INITIAL_MARGIN]       = 12,
@@ -378,7 +380,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SUBLINE_GAP]          = 2,
             [UI_METRIC_NAME_TEXT_DY]         = -1,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
-            [UI_METRIC_ROW_COVER_GAP]        = 6,
+            [UI_METRIC_ROW_COVER_GAP]        = 5,
             /* the cover 44 px in the middle of the three rows of one line it
                takes, as the Video's 60 in its 90 */
             [UI_METRIC_HEADER_COVER_TOP]     = 4,
@@ -405,7 +407,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_ROW_TEXT_DY]          = -1,
             /* Now Playing's covers square, as on a stock iPod */
             [UI_METRIC_COVER_RADIUS]         = 0,
-            [UI_METRIC_ROW_COVER_RADIUS]     = 2,
+            /* a row's cover square, the next one's touching it */
+            [UI_METRIC_ROW_COVER_RADIUS]     = 0,
             [UI_METRIC_ROW_RULE]             = 0,
             /* the line on column 217 */
             [UI_METRIC_SCROLLBAR_LINE]       = 2,
@@ -447,9 +450,9 @@ static const struct ui_theme ui_themes[] = {
         },
         .metric = {
             [UI_METRIC_ROW_HEIGHT]           = 30,
-            /* the rows' text 8 px from the list's edge, a cover 4 px and
-               its text 6 px after it (owner, 2026-11-13): the bar runs
-               from edge to edge */
+            /* the rows' text 8 px from the list's edge (owner, 2026-11-13),
+               a row's cover at the edge and its text 6 px after it: the bar
+               runs from edge to edge */
             [UI_METRIC_TEXT_INSET]           = 8,
             [UI_METRIC_INITIAL_HEIGHT]       = 72,
             [UI_METRIC_INITIAL_MARGIN]       = 16,
@@ -465,8 +468,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HINT_TOP]             = 10,
             [UI_METRIC_HINT_PITCH]           = 18,
             /* 35 px, as Neo's: the name's part its whole cell of 19, the
-               second line's of 15 a row under it; a row's cover in their
-               middle. Six of them in the list's 210, as seven rows of 30 */
+               second line's of 15 a row under it; a row's cover its top 35
+               rows. Six of them in the list's 210, as seven rows of 30 */
             [UI_METRIC_NAME_PART_CUT]        = 0,
             [UI_METRIC_SUBLINE_GAP]          = 1,
             [UI_METRIC_NAME_TEXT_DY]         = 0,
@@ -499,7 +502,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_ROW_TEXT_DY]          = -1,
             /* Now Playing's covers square, as on a stock iPod */
             [UI_METRIC_COVER_RADIUS]         = 0,
-            [UI_METRIC_ROW_COVER_RADIUS]     = 3,
+            /* a row's cover square, the next one's touching it */
+            [UI_METRIC_ROW_COVER_RADIUS]     = 0,
             [UI_METRIC_ROW_RULE]             = 0,
             /* the line on column 317 */
             [UI_METRIC_SCROLLBAR_LINE]       = 2,
@@ -635,8 +639,9 @@ static const struct ui_theme ui_themes[] = {
         /* The iPod photo's: the Video's by its own rules on a screen three
            quarters as high, its pixels a little larger: 15 px type in rows
            of 20, eight under the status line; a row of two lines 32, five of
-           them, with a cover of 28 px (LINE_COVER_SIZE): whole rows of either
-           kind in the list's 160; the Video's glyphs at their own sizes */
+           them, with a cover of 32 px (LINE_COVER_SIZE) as high as the row:
+           whole rows of either kind in the list's 160; the Video's glyphs at
+           their own sizes */
         .list_font = "15-Inter-SemiBold",
         .selector_bevel = false,
         .cover_colours = false,
@@ -706,7 +711,8 @@ static const struct ui_theme ui_themes[] = {
                column stays between them (UI_METRIC_SCROLLBAR_GAP, list.c) */
             [UI_METRIC_SELECTION_INSET_X]    = 2,
             [UI_METRIC_SELECTION_INSET_Y]    = 1,
-            /* a row's cover 2 px inside the selection's sides */
+            /* in a list of covers, a row without one: its text 2 px inside
+               the selection's side */
             [UI_METRIC_ROW_COVER_INSET]      = 4,
             [UI_METRIC_CHEVRON_ALL]          = 1,
             [UI_METRIC_CHEVRON_ON_PLAY]      = 0,
@@ -724,7 +730,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_ROW_TEXT_DY]          = -1,
             /* Now Playing's covers square, as on a stock iPod */
             [UI_METRIC_COVER_RADIUS]         = 0,
-            [UI_METRIC_ROW_COVER_RADIUS]     = 3,
+            /* a row's cover square, the next one's touching it */
+            [UI_METRIC_ROW_COVER_RADIUS]     = 0,
             /* On and Off in words, as the Video's Neo */
             [UI_METRIC_SWITCHES]             = 0,
             [UI_METRIC_SETTINGS_TWO_LINES]   = 0, /* one line, as the Video's */
@@ -783,7 +790,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SUBLINE_GAP]          = 1,
             [UI_METRIC_NAME_TEXT_DY]         = 0,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
-            [UI_METRIC_ROW_COVER_GAP]        = 8,
+            /* the cover on columns 0 to 35, the text's cell from 46 */
+            [UI_METRIC_ROW_COVER_GAP]        = 10,
             /* two rows of one line, so that five songs show under it: the
                cover 52 px and 4 over and under it, the texts at 78, their
                three lines 53 px from 3 down. With a name of two lines it
@@ -802,8 +810,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SELECTION_RADIUS]     = 7,
             [UI_METRIC_SELECTION_INSET_X]    = 4,
             [UI_METRIC_SELECTION_INSET_Y]    = 2,
-            /* a row's cover 2 px inside the selection on every side, as over
-               and under it: the rows without one start there too */
+            /* in a list of covers, a row without one: its text 2 px inside
+               the selection's side, as over and under it */
             [UI_METRIC_ROW_COVER_INSET]      = 6,
             [UI_METRIC_CHEVRON_ALL]          = 1,
             [UI_METRIC_CHEVRON_ON_PLAY]      = 0,
@@ -820,7 +828,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_ROW_TEXT_DY]          = -1,
             /* Now Playing's covers square, as on a stock iPod */
             [UI_METRIC_COVER_RADIUS]         = 0,
-            [UI_METRIC_ROW_COVER_RADIUS]     = 4,
+            /* a row's cover square, the next one's touching it */
+            [UI_METRIC_ROW_COVER_RADIUS]     = 0,
             /* On and Off in words, as Classic's: on the selected row a
                switch in the row's own colour read the same either way */
             [UI_METRIC_SWITCHES]             = 0,
@@ -900,9 +909,9 @@ static const struct ui_theme ui_themes[] = {
                     [UI_COLOUR_RING_TICK_MINOR] = RGB(0xa5, 0xa2, 0x9c),
                 },
 #ifdef UI_220X176
-                /* no lit top row: a row's cover of 28 px on rows 2 to 29 of
-                   its 32, the band's colour two rows over it and one under
-                   it, then the bevel's darker last row */
+                /* no lit top row: the band's colour from the top, the
+                   bevel's darker last row; a row's cover over its first 32
+                   columns, the whole row high */
                 .bevel = { 0, 0, 14 },
 #else
                 .bevel = { 35, 0, 14 },
@@ -964,8 +973,8 @@ static const struct ui_theme ui_themes[] = {
         },
 #ifdef UI_220X176
         /* The iPod photo's, the Video's by the same rules: rows of 20 in
-           15 px type, of two lines 32 with covers of 28 (LINE_COVER_SIZE),
-           their text and covers 4 px from the edge; no dot, the selected
+           15 px type, of two lines 32 with covers of 32 (LINE_COVER_SIZE) at
+           the edge, their text 4 px from it otherwise; no dot, the selected
            name in the signal colour (UI_METRIC_SELECTION_SIGNAL) */
         .list_font = "15-Inter-SemiBold",
         .selector_bevel = true,
@@ -1071,8 +1080,8 @@ static const struct ui_theme ui_themes[] = {
             /* rows of 27 and, of two lines, 36, from y 24: 8 or 6 of them
                fill the list (the owner's rule: equal rows, a whole number) */
             [UI_METRIC_ROW_HEIGHT]           = 27,
-            /* the names and the covers 4 px from the edge, as on the iPod
-               photo; the clock's margin of 16 is the status bar's */
+            /* the names 4 px from the edge and the rows' covers at it, as on
+               the iPod photo; the clock's margin of 16 is the status bar's */
             [UI_METRIC_TEXT_INSET]           = 4,
             [UI_METRIC_INITIAL_HEIGHT]       = 72,
             [UI_METRIC_INITIAL_MARGIN]       = 16,
@@ -1091,7 +1100,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HINT_X]               = 4, /* the rows' text's: one edge */
             [UI_METRIC_HINT_TOP]             = 6,
             [UI_METRIC_HINT_PITCH]           = 18,
-            /* 36 px, as Neo's */
+            /* 36 px: the name's cell of 19, the second line's 15 two rows
+               under it */
             [UI_METRIC_NAME_PART_CUT]        = 0,
             [UI_METRIC_SUBLINE_GAP]          = 2,
             [UI_METRIC_NAME_TEXT_DY]         = 0,
