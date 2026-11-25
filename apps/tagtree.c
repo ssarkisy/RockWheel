@@ -9925,6 +9925,29 @@ int tagtree_entry_album(struct tree_context *c, int row)
     return entry->album.no >= 0 ? entry->album.no : -1;
 }
 
+/* A person's All Songs row's collage: the albums of the rows under it, in the
+   list's order as it is, those without an album left out; the covers of the
+   first four of them with one make it (list_covers_collage()), as a
+   playlist's first albums do its own, and none the note. -1 for another
+   row */
+int tagtree_all_songs_albums(struct tree_context *c, int row, int *albums, int max)
+{
+    if (!tagtree_rows_covers(c) || row < 0 || row >= c->special_entry_count)
+        return -1;
+    const struct tagentry *entry = tagtree_get_entry(c, row);
+    if (!entry || entry->newtable != TABLE_ALLSUBENTRIES
+        || !persons_list(csi, c->currtable, c->currextra))
+        return -1;
+    int n = 0;
+    for (int r = c->special_entry_count; r < c->filesindir && n < max; r++)
+    {
+        const int no = tagtree_entry_album(c, r);
+        if (no >= 0)
+            albums[n++] = no;
+    }
+    return n;
+}
+
 /* one without an album's name has no cover, as by album */
 int tagtree_song_album(int32_t idx)
 {

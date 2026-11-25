@@ -188,6 +188,9 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
 const char *tagtree_album_subline(int no, int year, bool artist,
                                   const char *except, char *buf, size_t size);
 int tagtree_entry_album(struct tree_context *c, int row);
+/* a person's All Songs row's albums for its collage into albums, at most max:
+   how many, -1 for another row */
+int tagtree_all_songs_albums(struct tree_context *c, int row, int *albums, int max);
 /* A song's row in a list of songs of another screen, as a playlist's, by
    its entry in the database, as Songs by name has it: its album by its
    number, -1 for the note; and its second line, its artist, written to buf,

@@ -472,14 +472,21 @@ static const char *tree_get_subline(int selected_item, void *data, char *buf,
            : tagtree_entry_subline(local_tc, index_of(selected_item), buf, size);
 }
 
-/* and its cover at its left, or the note in its place; none for a row that
+/* and its cover at its left, or the note in its place; a person's All Songs
+   a collage of the albums under it, as a playlist's row; none for a row that
    isn't an album's, as Sort By */
+#define ALL_SONGS_LOOKS 16 /* the albums looked at for its collage's four */
 static int tree_get_cover(int selected_item, void *data, const fb_data **pixels)
 {
     struct tree_context *local_tc = (struct tree_context *)data;
     if (tree_is_group(selected_item, NULL))
         return LIST_COVER_NONE;
-    const int album = tagtree_entry_album(local_tc, index_of(selected_item));
+    const int row = index_of(selected_item);
+    int albums[ALL_SONGS_LOOKS];
+    const int n = tagtree_all_songs_albums(local_tc, row, albums, ALL_SONGS_LOOKS);
+    if (n >= 0)
+        return list_covers_collage(albums, n, pixels);
+    const int album = tagtree_entry_album(local_tc, row);
     return album < -1 ? LIST_COVER_NONE : list_covers_get(album, pixels);
 }
 
