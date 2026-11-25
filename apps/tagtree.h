@@ -40,7 +40,6 @@ bool tagtree_ready(void);
 void tagtree_ram_waited_out(void);
 #endif
 void tagtree_save_place(int dirlevel, int selected_item);
-void tagtree_restore_place(int *dirlevel, int *selected_item);
 /* That place, a list of Music's, is known for the music playing: Now Playing's
    Playing From opens it then, as the go-tos below, at the song playing */
 bool tagtree_playing_from_known(void);

@@ -3502,13 +3502,9 @@ int lp_view(const char *file, int *selection)
                 break;
             case ACTION_TREE_STOP:
                 /* holding Play goes to Now Playing, if it has a song: stopped,
-                   it shows it paused and starts nothing (wpsscrn()); Menu
-                   there to where the music was started */
+                   it shows it paused and starts nothing (wpsscrn()) */
                 if (now_playing_available())
-                {
-                    root_menu_play_held();
                     ret = PLAYLIST_VIEWER_OK;
-                }
                 break;
             case ACTION_STD_MENU:
                 ret = PLAYLIST_VIEWER_MAINMENU;

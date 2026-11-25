@@ -122,10 +122,8 @@ static bool music_from_main_menu = false;
    left, to go back to. 0 for none, or else its phrase. */
 static int section_left_in = 0;
 static bool in_section = false;
-/* where Search and Cover Flow go back to: Music, or the main menu they were
-   opened from */
+/* where Search goes back to: Music, or the main menu it was opened from */
 static int search_back = GO_TO_DBBROWSER;
-static int cover_flow_back = GO_TO_DBBROWSER;
 static bool cover_flow_from_main_menu = false;
 #endif
 
@@ -136,18 +134,13 @@ static bool cover_flow_from_main_menu = false;
    go-to, as Search's artist (wps_back_lists), as they were left, Menu going
    up them to the go-to's first level (lists_go_to_level) and on, and Cover
    Flow opened from Music or the main menu (wps_back_cover_flow), whose own
-   Menu goes on to cover_flow_back. Set as Now Playing opens, from what the
+   Menu goes on to wps_cover_flow_back. Set as Now Playing opens, from what the
    screen before left for it with (left_lists, left_cover_flow), which only a
    screen outside Now Playing sets (wps_showing). */
 static bool wps_showing;
 static bool left_lists, left_cover_flow;
 static bool wps_back_lists, wps_back_cover_flow;
 static int lists_go_to_level = -1;
-/* Play held to open Now Playing in a screen that passes it on as GO_TO_WPS
-   (a go-to's lists from a song's menu or Cover Flow, a playlist's screen,
-   Search), which the root loop can't tell from the screen gone dark: Menu in
-   Now Playing to where the music was started, as after held Play anywhere */
-static bool wps_play_held;
 /* a menu over Now Playing asked to go back to the screen under it, as Menu
    does, rather than open it again over it: the loop rule (2026-11-24) */
 static bool wps_leave_asked;
@@ -164,16 +157,13 @@ static bool is_section_screen(int screen)
 {
     return screen >= GO_TO_ARTISTS && screen <= GO_TO_COMPILATIONS;
 }
-static int items_section_lang(int screen);
 #endif
 
-/* Where the music playing was started. Holding Play opens Now Playing from anywhere,
-   and Menu there then goes back to that and not to where Play was held. Not known
-   after a boot, when it goes back as usual. */
-static enum { ORIGIN_NONE, ORIGIN_SCREEN, ORIGIN_COVER_FLOW } music_origin = ORIGIN_NONE;
-static int music_origin_screen;
+/* The music's origin, which Playing From goes to: started from Music's lists,
+   the place there (tagtree_save_place()). Each start once, by the screen it
+   was made in; Cover Flow takes its own (root_menu_cover_flow()), so that the
+   lists under it aren't taken for it */
 static unsigned int music_starts_seen;
-static bool wps_after_hold = false;
 
 static void note_music_origin(int screen)
 {
@@ -181,28 +171,12 @@ static void note_music_origin(int screen)
     if (starts == music_starts_seen)
         return;
     music_starts_seen = starts;
-    switch (screen)
-    {
-        case GO_TO_WPS:
-        case GO_TO_PLAYLIST_VIEWER: /* within what's playing */
-            return;
-        case GO_TO_SHUFFLE_SONGS: /* from the main menu */
-        case GO_TO_SHUFFLE_ALBUMS:
-            music_origin_screen = GO_TO_ROOT;
-            break;
 #ifdef HAVE_TAGCACHE
-        case GO_TO_DBBROWSER:
-        case GO_TO_ARTISTS: case GO_TO_ALBUMS: case GO_TO_SONGS:
-        case GO_TO_PODCASTS: case GO_TO_GENRES: case GO_TO_COMPOSERS:
-        case GO_TO_AUDIOBOOKS: case GO_TO_COMPILATIONS:
-            tagtree_save_place(last_db_dirlevel, last_db_selection);
-            /* fall through */
+    if (screen == GO_TO_DBBROWSER || is_section_screen(screen))
+        tagtree_save_place(last_db_dirlevel, last_db_selection);
+#else
+    (void)screen;
 #endif
-        default:
-            music_origin_screen = screen;
-            break;
-    }
-    music_origin = ORIGIN_SCREEN;
 }
 
 /* the song of Cover Flow's Go to Artist, "" for none; offered only while
@@ -234,24 +208,14 @@ int root_menu_cover_flow(const char *at, char *go_to)
 #endif
         const int ret = plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", at);
         cover_flow_go_to_offered = false;
-        /* Play held there, as in the lists: Menu in Now Playing to where the
-           music was started */
-        if (ret == PLUGIN_GOTO_WPS && action_last_action() == ACTION_TREE_STOP)
-            root_menu_play_held();
         /* left for Now Playing, which Menu there brings back here */
         left_cover_flow = ret == PLUGIN_GOTO_WPS && !wps_showing;
         if (left_cover_flow)
             wps_cover_flow_back = cover_flow_from_main_menu ? GO_TO_ROOT
                                                             : GO_TO_DBBROWSER;
-        const unsigned int starts = playlist_start_count();
-        if (starts != music_starts_seen)
-        {
-            music_starts_seen = starts;
-            music_origin = ORIGIN_COVER_FLOW;
-#ifdef HAVE_TAGCACHE
-            cover_flow_back = cover_flow_from_main_menu ? GO_TO_ROOT : GO_TO_DBBROWSER;
-#endif
-        }
+        /* music started there is Cover Flow's, not the lists' it was
+           opened over (note_music_origin()) */
+        music_starts_seen = playlist_start_count();
         if (go_to)
             strmemccpy(go_to, ret == PLUGIN_OK ? cover_flow_go_to : "", MAX_PATH);
 #ifdef HAVE_TAGCACHE
@@ -280,56 +244,6 @@ int root_menu_cover_flow(const char *at, char *go_to)
 #else
         return ret;
 #endif
-    }
-}
-
-/* The screen to go to from Now Playing, if it was opened by holding Play */
-static int back_to_music_origin(int otherwise)
-{
-    switch (music_origin)
-    {
-        case ORIGIN_NONE:
-            return otherwise;
-        case ORIGIN_COVER_FLOW:
-        {
-#ifdef HAVE_TAGCACHE
-            const int back = cover_flow_back;
-            cover_flow_from_main_menu = back == GO_TO_ROOT;
-#else
-            const int back = GO_TO_DBBROWSER;
-#endif
-#ifdef ITUNESDB_HAVE_ART
-            const int ret = root_menu_cover_flow(ITUNESDB_COVER_FLOW_BACK, NULL);
-#else
-            const int ret = root_menu_cover_flow(NULL, NULL);
-#endif
-#ifdef HAVE_TAGCACHE
-            cover_flow_from_main_menu = false;
-#endif
-            switch (ret)
-            {
-                case PLUGIN_GOTO_WPS:
-                    wps_after_hold = true;
-                    return GO_TO_WPS;
-                case PLUGIN_GOTO_ROOT:
-                    return GO_TO_ROOT;
-                case PLUGIN_GOTO_PLUGIN:
-                    return GO_TO_PLUGIN;
-                default:
-                    return back;
-            }
-        }
-        case ORIGIN_SCREEN:
-        default:
-#ifdef HAVE_TAGCACHE
-            if (music_origin_screen == GO_TO_DBBROWSER
-                || is_section_screen(music_origin_screen))
-                tagtree_restore_place(&last_db_dirlevel, &last_db_selection);
-            /* a section goes on from there, not from its list */
-            section_left_in = is_section_screen(music_origin_screen)
-                ? items_section_lang(music_origin_screen) : 0;
-#endif
-            return music_origin_screen;
     }
 }
 
@@ -362,9 +276,10 @@ static int cover_flow_again(void)
 }
 #endif
 
-/* Menu in Now Playing, which wasn't opened by holding Play: the screens it was
-   opened from that unwound on the way, opened again here in turn, the lists
-   of a go-to first, then Cover Flow; else the root loop's screen before it */
+/* Menu in Now Playing, however it was opened, Play held too: the screens it
+   was opened from that unwound on the way, opened again here in turn, the
+   lists of a go-to first, then Cover Flow; else the root loop's screen before
+   it */
 static int wps_go_back(int otherwise)
 {
     const bool to_cover_flow = wps_leave_to_cover_flow;
@@ -398,12 +313,6 @@ static int wps_go_back(int otherwise)
     return otherwise;
 }
 
-void root_menu_play_held(void)
-{
-    if (!wps_showing)
-        wps_play_held = true;
-}
-
 bool root_menu_wps_leave_asked(void)
 {
     const bool asked = wps_leave_asked;
@@ -414,9 +323,7 @@ bool root_menu_wps_leave_asked(void)
 #ifdef HAVE_TAGCACHE
 bool root_menu_back_to_cover_flow(void)
 {
-    /* not after a held Play, whose Menu goes to where the music was started:
-       over Now Playing then, as before */
-    if (!wps_showing || !wps_back_cover_flow || wps_after_hold)
+    if (!wps_showing || !wps_back_cover_flow)
         return false;
     wps_leave_asked = true;
     wps_leave_to_cover_flow = true;
@@ -699,8 +606,6 @@ static int go_to_browse(bool found, unsigned int starts)
        gone dark): Menu there brings them back (wps_go_back()) */
     left_lists = !wps_showing
                  && (screen == GO_TO_WPS || screen == GO_TO_PREVIOUS_MUSIC);
-    if (screen == GO_TO_PREVIOUS_MUSIC && action_last_action() == ACTION_TREE_STOP)
-        root_menu_play_held();
     if (started || left_lists)
     {
         /* where Menu leaves them, for when they open again; kept as left if
@@ -725,11 +630,10 @@ static int go_to_from_menu(int screen)
 }
 
 /* Now Playing was opened from Music's lists, under it: themselves, or a
-   go-to's, which its Menu opens again, but for a held Play, whose Menu goes
-   back to where the music was started */
+   go-to's, which its Menu opens again */
 static bool wps_over_lists(void)
 {
-    if (!wps_showing || wps_after_hold)
+    if (!wps_showing)
         return false;
     return wps_back_lists
            || (!wps_back_cover_flow
@@ -1106,9 +1010,6 @@ static int photos(void *param)
     menu_set_selected_panel(MENU_PANEL_PHOTOS);
     const int status = plugin_load(PLUGIN_APPS_DIR "/photos.rock", NULL);
     menu_set_selected_panel(MENU_PANEL_NONE);
-    /* Play held there: Menu in Now Playing to where the music was started */
-    if (status == PLUGIN_GOTO_WPS && action_last_action() == ACTION_TREE_STOP)
-        root_menu_play_held();
     photos_panel_show_end();
 #ifdef UI_MAIN_MENU_PANE
     /* the main menu's width back; drawn now only for the main menu itself,
@@ -1198,13 +1099,6 @@ static const struct root_items items[] = {
 
 };
 #define NUM_ITEMS (int)(sizeof(items)/sizeof(*items))
-
-#ifdef HAVE_TAGCACHE
-static int items_section_lang(int screen)
-{
-    return (intptr_t)items[screen].param;
-}
-#endif
 
 static int item_callback(int action,
                          const struct menu_item_ex *this_item,
@@ -2891,7 +2785,7 @@ void root_menu(void)
                         playlist_check_resume();
                 }
                 global_status.last_screen = GO_TO_ROOT; /* We've returned to ROOT */
-                wps_left = wps_play_held = false;
+                wps_left = false;
                 left_lists = left_cover_flow = wps_leave_to_cover_flow = false;
                 /* When we are in the main menu we want the hardware BACK
                  * button to be handled by HOST instead of rockbox */
@@ -2951,15 +2845,11 @@ void root_menu(void)
                 break;
 
             case GO_TO_PREVIOUS_MUSIC:
-            {
+                /* Play held, or the screen gone dark: Menu in Now Playing back
+                   to the screen left, as from any other way there (the
+                   owner's decision, 2026-11-25) */
                 next_screen = previous_music;
-                /* gone there as the screen went dark: Menu back here; but
-                   after Play held, which a go-to's lists tell exactly */
-                const bool dark = action_dark_return_taken();
-                wps_after_hold = wps_play_held || !dark;
-                wps_play_held = false;
                 break;
-            }
             case GO_TO_ROOTITEM_CONTEXT:
                 next_screen = load_context_screen(selected);
                 break;
@@ -3045,10 +2935,8 @@ load_next_screen: /* load_screen is inlined */
                 wps_back_lists = left_lists;
                 wps_back_cover_flow = left_cover_flow;
                 wps_leave_to_cover_flow = false;
-                if (wps_play_held)
-                    wps_after_hold = true;
             }
-            left_lists = left_cover_flow = wps_play_held = false;
+            left_lists = left_cover_flow = false;
 #ifdef HAVE_TAGCACHE
             /* back from Now Playing to a list: at the song playing, a list
                opened in place as it was left */
@@ -3063,12 +2951,8 @@ load_next_screen: /* load_screen is inlined */
             note_music_origin(screen);
             if (screen == GO_TO_WPS)
             {
-                const bool after_hold = wps_after_hold;
-                wps_after_hold = false;
                 wps_left = true;
-                if (after_hold && next_screen == GO_TO_PREVIOUS)
-                    next_screen = back_to_music_origin(next_screen);
-                else if (next_screen == GO_TO_PREVIOUS)
+                if (next_screen == GO_TO_PREVIOUS)
                     next_screen = wps_go_back(next_screen);
             }
         }

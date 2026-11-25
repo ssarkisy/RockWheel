@@ -43,10 +43,6 @@ int root_menu_cover_flow(const char *at, char *go_to);
    it, as Menu does (root_menu_back_to_cover_flow(), and a go-to that found the
    list under it): true once, as Now Playing asks after the menu */
 bool root_menu_wps_leave_asked(void);
-/* Play held in a screen that then gives GO_TO_WPS, not GO_TO_PREVIOUS_MUSIC
-   (Search, a playlist's screen): Now Playing's Menu goes back to where the
-   music was started, as after Play held anywhere */
-void root_menu_play_held(void);
 /* Cover Flow's Go to Artist, the song's file, as it quits: false if it isn't
    offered, as Cover Flow isn't open by root_menu_cover_flow(); with NULL, that
    alone */

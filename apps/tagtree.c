@@ -731,7 +731,8 @@ static struct tagtree_place browse_place, scratch_place;
 /* Play on a row of songs (tagtree_play_row()): the list it opened unseen, at
    the song played, of the start it made (played_starts). Playing From goes
    there, as after Select on that song; Menu over Now Playing still goes back
-   to the row, where the music was started (saved_place) */
+   to the row, as the lists were left. saved_place is that row, where the
+   music was started */
 static struct tagtree_place played_place;
 static unsigned int played_starts = ~0u;
 /* the lists of a go-to left for Now Playing, as they were, if no music was
@@ -5431,7 +5432,7 @@ static void kept_place_write(void);
 
 void tagtree_save_place(int dirlevel, int selected_item)
 {
-    /* the place, for Menu over Now Playing to go back to */
+    /* the place, for Playing From to go to */
     place_save(&saved_place, dirlevel, selected_item);
     saved_starts = playlist_start_count();
     saved_commit = tagcache_get_commitid();
@@ -5625,10 +5626,9 @@ static void kept_place_remove(void)
 }
 
 /* saved_place into the file, unless it's there already: its pointers as the
-   numbers of the menus and searches they point into. After a boot it serves
-   Playing From alone (music_origin is none then): so after Play on a row of
-   songs, the list it opened, played_place, by its own key, as Playing From
-   goes there before the boot too */
+   numbers of the menus and searches they point into. It serves Playing From
+   alone: so after Play on a row of songs, the list it opened, played_place,
+   by its own key, as Playing From goes there before the boot too */
 static void kept_place_write(void)
 {
     const bool played = played_current();
@@ -5733,11 +5733,6 @@ static void kept_place_read(void)
     saved_list = kept.list;
     saved_key = kept.key;
     kept_on_disk = words_hash(&kept, sizeof(kept), 2166136261u) | 1;
-}
-
-void tagtree_restore_place(int *dirlevel, int *selected_item)
-{
-    place_restore(&saved_place, dirlevel, selected_item);
 }
 
 /* The row of the list with this name, or -1: for the database's <Untagged>,

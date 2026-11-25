@@ -2862,10 +2862,7 @@ static int show_group(int g)
             case ACTION_TREE_STOP:
                 /* Play held: Now Playing, if it has a song, as from any list */
                 if (now_playing_available())
-                {
-                    root_menu_play_held();
                     ret = GO_TO_WPS;
-                }
                 break;
             case ACTION_STD_MENU:
                 ret = GO_TO_ROOT;
@@ -3041,10 +3038,7 @@ int music_search_screen(void *param)
                     /* Play held: Now Playing, if it has a song, as from any
                        list */
                     if (now_playing_available())
-                    {
-                        root_menu_play_held();
                         ret = GO_TO_WPS;
-                    }
                     break;
                 case ACTION_STD_MENU:
                     ret = GO_TO_ROOT;

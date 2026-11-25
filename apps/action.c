@@ -1136,7 +1136,6 @@ static bool asking_abort;
    Screen). Only the screens that go to Now Playing on ACTION_TREE_WPS; not a
    plugin, a setting's values, nor a keyboard. */
 static bool dark_returned;      /* this time it went dark */
-static bool dark_return_taken;  /* until the main menu has asked */
 static unsigned int dark_count; /* the time it went dark that was gone by */
 
 static bool dark_return_due(int context)
@@ -1178,19 +1177,11 @@ static bool dark_return_due(int context)
     if (!menus && !browsers)
         return false;
     dark_returned = true;
-    dark_return_taken = true;
     return true;
 #else
     (void)context;
     return false;
 #endif
-}
-
-bool action_dark_return_taken(void)
-{
-    const bool taken = dark_return_taken;
-    dark_return_taken = false;
-    return taken;
 }
 
 long action_last_tick(void)
@@ -1279,9 +1270,6 @@ static int get_action_worker(action_last_t *last, action_cur_t *cur)
                       && wps_wheel_is_volume() && !plugin_is_running());
 #endif
 
-    /* the main menu asks right after the screen it ended: a later call is of
-       another way to Now Playing */
-    dark_return_taken = false;
     if (dark_return_due(cur->context))
         return no_click(ACTION_TREE_WPS);
 
