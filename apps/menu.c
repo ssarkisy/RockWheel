@@ -298,7 +298,8 @@ static int setting_switch(const struct settings_list *setting)
 }
 
 /* Submenus, screens and actions lead to more, settings don't unless they open a
-   screen; nor does Shuffle Songs, as on a stock iPod */
+   screen; nor does Shuffle Songs, as on a stock iPod, nor the main menu's
+   Shuffle choice's Songs and Albums, which play as it does */
 static bool menu_has_children(int selected_item, void * data)
 {
     const struct menu_item_ex *menu = (const struct menu_item_ex *)data;
@@ -378,22 +379,20 @@ static int pane_row(const struct menu_item_ex *menu,
 }
 
 /* Its names there that were cut beside the pane, of the rows that have one:
-   Shuffle Songs and Shuffle Albums as Songs and Albums after the shuffle
-   glyph (pane_mark()), and the others' short names, which a language has
-   where its full one was cut, or the full one again. Composers keeps its
-   full name where it doesn't fit, cut as any long row is: with "…" in the
-   themes that end long rows so (UI_METRIC_ROW_RIGHT), bare in Classic and
-   Dieter. Spoken in full, by the rows' own phrases (talk_menu_item()) */
+   their short names, which a language has where its full one was cut, or
+   the full one again; where Shuffle Songs is cut, its short name is the word
+   alone that names the Shuffle row opening a choice (root_menu.c). Composers
+   keeps its full name where it doesn't fit, cut as any long row is: with "…"
+   in the themes that end long rows so (UI_METRIC_ROW_RIGHT), bare in Classic
+   and Dieter. Spoken in full, by the rows' own phrases (talk_menu_item()) */
 static const char *pane_name(const struct menu_item_ex *menu,
                              const struct menu_item_ex *item)
 {
     switch (pane_row(menu, item))
     {
-#if defined(HAVE_TAGCACHE) && defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+#ifdef HAVE_TAGCACHE
         case GO_TO_SHUFFLE_SONGS:
-            return str(LANG_SONGS);
-        case GO_TO_SHUFFLE_ALBUMS:
-            return str(LANG_ALBUMS);
+            return str(LANG_SHUFFLE_SONGS_SHORT);
 #endif
         case GO_TO_WPS: /* Now Playing, the music stopped too (root_menu.c) */
             return str(LANG_NOW_PLAYING_SHORT);
@@ -415,24 +414,6 @@ static const char *pane_name(const struct menu_item_ex *menu,
 #endif
         default:
             return NULL;
-    }
-}
-
-/* the shuffle glyph before Songs and Albums there; the Video's rows keep
-   their full names, Shuffle Songs and Shuffle Albums, without it */
-static int pane_mark(int selected_item, void *data)
-{
-    const struct menu_item_ex *menu = (const struct menu_item_ex *)data;
-    switch (pane_row(menu, menu->submenus[get_menu_selection(selected_item, menu)]))
-    {
-#if defined(HAVE_TAGCACHE) && defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
-        case GO_TO_SHUFFLE_SONGS:
-            return LINE_MARK_SHUFFLE_SONGS;
-        case GO_TO_SHUFFLE_ALBUMS:
-            return LINE_MARK_SHUFFLE_ALBUMS;
-#endif
-        default:
-            return LINE_MARK_NONE;
     }
 }
 #endif /* UI_MAIN_MENU_PANE */
@@ -1248,10 +1229,6 @@ static int init_menu_lists(const struct menu_item_ex *menu,
 
     gui_synclist_init(lists,get_menu_item_name,(void*)menu,false,1, parent);
     gui_synclist_set_before_draw(lists, panel_before_draw);
-#ifdef UI_MAIN_MENU_PANE
-    if (menu == &root_menu_)
-        gui_synclist_set_mark_callback(lists, pane_mark);
-#endif
     if (menu_wide() && menu_has_hints(menu))
         gui_synclist_set_hint_callback(lists, menu_hint);
     if (menu_shows_values(menu) || menu_has_groups(menu)

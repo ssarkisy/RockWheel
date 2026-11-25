@@ -59,6 +59,7 @@
 #include "yesno.h"
 #include "viewport.h"
 #include "gui/ui_theme.h"
+#include "gui/transition.h"
 
 #include "tree.h"
 #if CONFIG_TUNER
@@ -832,6 +833,53 @@ static int shuffle_albums(void* param)
     (void)param;
     return tagtree_shuffle_songs(true) ? GO_TO_WPS : GO_TO_PREVIOUS;
 }
+
+/* With Shuffle Albums on in Settings > Main Menu, the main menu's one Shuffle
+   row opens a choice of Songs and Albums across the screen, titled with the
+   row's word, as a stock iPod's lists are; each row plays at once, by the
+   actions above. Spoken in full: Shuffle Songs, Shuffle Albums */
+static char *get_shuffle_choice_name(int selected_item, void *data,
+                                     char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)buffer; (void)buffer_len;
+    const int id = data ? LANG_ALBUMS : LANG_SONGS;
+    return ID2P(id);
+}
+
+static int talk_shuffle_choice(int selected_item, void *data)
+{
+    (void)selected_item;
+    talk_id(data ? LANG_SHUFFLE_ALBUMS : LANG_SHUFFLE_SONGS, false);
+    return 0;
+}
+MENUITEM_RETURNVALUE_DYNTEXT(shuffle_choice_songs, GO_TO_SHUFFLE_SONGS, NULL,
+                             get_shuffle_choice_name, talk_shuffle_choice,
+                             NULL, Icon_Audio);
+MENUITEM_RETURNVALUE_DYNTEXT(shuffle_choice_albums, GO_TO_SHUFFLE_ALBUMS, NULL,
+                             get_shuffle_choice_name, talk_shuffle_choice,
+                             (void *)1, Icon_Audio);
+MAKE_MENU(shuffle_choice_menu, ID2P(LANG_SHUFFLE_MENU), NULL, Icon_Audio,
+          &shuffle_choice_songs, &shuffle_choice_albums);
+
+/* Opened from inside the main menu's list, which Back slides back to as it
+   was, on this row (0). A choice made is returned as the main menu's own
+   row's action would be, into Now Playing with a slide, the main menu's
+   width back for when it next shows, not drawn under Now Playing */
+static int shuffle_choice(void)
+{
+    int selected = 0;
+    transition_begin(TRANSITION_FORWARD);
+    menu_set_wide(true);
+    const int chosen = do_menu(&shuffle_choice_menu, &selected, NULL, false);
+    if (chosen == GO_TO_SHUFFLE_SONGS || chosen == GO_TO_SHUFFLE_ALBUMS)
+    {
+        transition_begin(TRANSITION_FORWARD);
+        menu_set_wide_later(false);
+        return chosen;
+    }
+    menu_set_wide(false);
+    return chosen == GO_TO_PREVIOUS ? 0 : chosen;
+}
 #endif
 /* the list for Resume Playback: playlist_resume()'s answer, without the
    load and its wait when it's in memory as a load would make it now: read
@@ -1165,10 +1213,38 @@ MENUITEM_RETURNVALUE(file_browser, ID2P(LANG_DIR_BROWSER), GO_TO_FILEBROWSER,
 #ifdef HAVE_TAGCACHE
 MENUITEM_RETURNVALUE(db_browser, ID2P(LANG_MUSIC), GO_TO_DBBROWSER,
                         item_callback, Icon_Audio);
+/* The main menu's Shuffle: with Shuffle Albums off in Settings > Main Menu
+   Shuffle Songs, which one press plays, as on a stock iPod; on the Video the
+   short word of a language whose Shuffle Songs is cut beside the pane in a
+   theme, which its ipodvideo text of LANG_SHUFFLE_SONGS_SHORT has, or else
+   Shuffle Songs itself; the photo's is menu.c's pane_name(). Spoken in full */
+#ifdef IPOD_VIDEO
+static char *get_shuffle_songs_name(int selected_item, void *data,
+                                    char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data; (void)buffer; (void)buffer_len;
+    if (*str(LANG_SHUFFLE_SONGS_SHORT))
+        return ID2P(LANG_SHUFFLE_SONGS_SHORT);
+    return ID2P(LANG_SHUFFLE_SONGS);
+}
+
+static int talk_shuffle_songs(int selected_item, void *data)
+{
+    (void)selected_item; (void)data;
+    talk_id(LANG_SHUFFLE_SONGS, false);
+    return 0;
+}
+MENUITEM_RETURNVALUE_DYNTEXT(shuffle_songs_item, GO_TO_SHUFFLE_SONGS,
+                             item_callback, get_shuffle_songs_name,
+                             talk_shuffle_songs, NULL, Icon_Audio);
+#else
 MENUITEM_RETURNVALUE(shuffle_songs_item, ID2P(LANG_SHUFFLE_SONGS),
                         GO_TO_SHUFFLE_SONGS, item_callback, Icon_Audio);
-MENUITEM_RETURNVALUE(shuffle_albums_item, ID2P(LANG_SHUFFLE_ALBUMS),
-                        GO_TO_SHUFFLE_ALBUMS, item_callback, Icon_Audio);
+#endif
+/* and with it on, the word alone, which opens the choice of Songs and Albums */
+MENUITEM_FUNCTION(shuffle_choice_item, MENU_FUNC_CHECK_RETVAL,
+                  ID2P(LANG_SHUFFLE_MENU), shuffle_choice, item_callback,
+                  Icon_Audio);
 /* Music's sections, in the main menu if Settings > Main Menu has them; Playlists
    is the item below */
 MENUITEM_RETURNVALUE(cover_flow_item, ID2P(LANG_COVER_FLOW), GO_TO_COVER_FLOW,
@@ -1259,7 +1335,7 @@ static struct menu_table menu_table[] = {
 #ifdef HAVE_TAGCACHE
     { "database", &db_browser },
     { "shuffle_songs", &shuffle_songs_item },
-    { "shuffle_albums", &shuffle_albums_item },
+    { "shuffle", &shuffle_choice_item },
     { "cover_flow", &cover_flow_item },
     { "search", &search_item },
     { "artists", &artists_item },
@@ -1366,9 +1442,9 @@ void root_menu_set_default(void* setting, void* defaultval)
     char order[] = "bookmarks, database, cover_flow, search, playlists, artists, "
                    "albums, compilations, songs, podcasts, genres, composers, "
                    "audiobooks, photos, extras, settings, shuffle_songs, "
-                   "shuffle_albums, wps";
+                   "shuffle, wps";
 #else
-    char order[] = "bookmarks, database, photos, extras, settings, shuffle_songs, shuffle_albums, wps";
+    char order[] = "bookmarks, database, photos, extras, settings, shuffle_songs, shuffle, wps";
 #endif
     (void)defaultval;
 
@@ -1420,8 +1496,13 @@ static const struct {
    tagnavi.config has it, Music only with a section of its own to show */
 static bool main_menu_has(const struct menu_item_ex *item)
 {
-    if (item == &shuffle_albums_item)
+    /* one Shuffle row, with either of Shuffle Songs and Shuffle Albums:
+       the choice of both with Shuffle Albums on */
+    if (item == &shuffle_choice_item)
         return global_settings.main_menu_shuffle_albums;
+    if (item == &shuffle_songs_item)
+        return global_settings.main_menu_show[MAIN_MENU_SHUFFLE_SONGS]
+               && !global_settings.main_menu_shuffle_albums;
     for (unsigned i = 0; i < ARRAYLEN(main_menu_rows); i++)
     {
         if (main_menu_rows[i].item != item)

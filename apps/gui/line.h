@@ -198,12 +198,7 @@ enum line_mark { LINE_MARK_NONE, LINE_MARK_PLAYLIST, LINE_MARK_FOLDER,
                  /* and of a podcast's episodes, in a narrower column: a dot
                     for a new one, a half dot for one begun, and the column
                     empty for another, its name in line with theirs */
-                 LINE_MARK_NEW, LINE_MARK_HALF, LINE_MARK_EMPTY,
-                 /* the iPod photo's main menu's Shuffle Songs and Shuffle
-                    Albums beside its pane: the status line's shuffle glyph
-                    in the name's colour, Songs or Albums after it as a word
-                    after another */
-                 LINE_MARK_SHUFFLE_SONGS, LINE_MARK_SHUFFLE_ALBUMS };
+                 LINE_MARK_NEW, LINE_MARK_HALF, LINE_MARK_EMPTY };
 int line_mark_width(struct screen *display);
 /* the column of this mark, 0 where it isn't drawn: from LINE_MARK_NEW on
    right to left too, at x from the other end, as the covers' */

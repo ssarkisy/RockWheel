@@ -24643,3 +24643,37 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS_SHORT
+  desc: the main menu's row for Shuffle Songs, beside the pane on the iPod photo and the iPod Video with Shuffle Albums off in Settings > Main Menu: where Shuffle Songs is cut there in a theme, the language's word for shuffle, the same as LANG_SHUFFLE_MENU, else the same as Shuffle Songs; one press shuffles the songs either way; spoken as Shuffle Songs
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Shuffle Songs"
+    ipodvideo: "Shuffle Songs"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Parçaları Karıştır"
+    ipodvideo: "Parçaları Karıştır"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: ""
+    ipodvideo: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_MENU
+  desc: the main menu's one Shuffle row with Shuffle Albums on in Settings > Main Menu, which opens a choice of Songs and Albums, and that choice's title: one short word for shuffle, as a stock iPod's Settings > Shuffle row has it (Apple's own word where it has one), not the noun of LANG_SHUFFLE where that is long; it must fit beside the main menu's pane on the iPod photo
+  user: core
+  <source>
+    *: "Shuffle"
+  </source>
+  <dest>
+    *: "Karıştır"
+  </dest>
+  <voice>
+    *: "Karıştır"
+  </voice>
+</phrase>
