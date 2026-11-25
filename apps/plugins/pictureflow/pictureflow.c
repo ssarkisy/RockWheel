@@ -7556,6 +7556,46 @@ static void prepare_ahead(void)
 }
 #endif
 
+#ifdef ITUNESDB_HAVE_ART
+/* The album's tracks shown at once, at the track playing, as Select and Select
+   again show them, without the cover's turn, whose frames weren't shown: its
+   card isn't made, as only the closing turns it. False if they're from the
+   database on the disk, which shows its wait, or if it has none, whose room
+   is given back: then by Select's steps */
+static bool open_tracks_now(void)
+{
+    const int idx = center_slide.slide_index;
+#ifdef HAVE_TC_RAMCACHE
+    if (pf_tracks.cur_idx != idx && !rb->tagcache_is_in_ram())
+        return false;
+#endif
+    pf_boost(true);
+    const unsigned long start = anim_now();
+    tracks_lock(); /* no slide loads while they show */
+    if (pf_tracks.cur_idx == idx)
+        cf_marks.ready++;
+    else
+    {
+        create_track_index(idx);
+        if (pf_tracks.count == 0)
+        {
+            free_borrowed_tracks();
+            return false;
+        }
+        reset_track_list();
+        const unsigned long took = anim_now() - start;
+        cf_marks.made_all += took;
+        cf_marks.made_most = MAX(cf_marks.made_most, took);
+    }
+    cf_marks.opened++;
+    skip_animation_to_show_tracks();
+    select_playing_track();
+    /* the album's cover is in, under its tracks: their frame is shown */
+    is_initial_slide = false;
+    return true;
+}
+#endif
+
 /**
   Main function that also contain the main plasma
   algorithm.
@@ -7706,6 +7746,13 @@ static int pictureflow_main(void)
                 break;
             case pf_idle:
                 show_tracks_while_browsing = false;
+                /* nothing shown while the tracks are to open at once: none
+                   drawn either, as the covers come */
+                if (frames_held())
+                {
+                    drawn = false;
+                    break;
+                }
                 if (!lit || (idle_shown
                     && !(lines_moved & (1u << PF_SCROLL_ALBUM | 1u << PF_SCROLL_ARTIST))
                     && idle_slides == slides_arrived && !pf_cfg.show_fps))
@@ -7812,17 +7859,22 @@ static int pictureflow_main(void)
 #ifndef USE_CORE_PREVNEXT
             |(pf_state == pf_show_tracks ? 1 : 0)
 #endif
-            ,instant_update ? 0 : wheel_touched() ? 1 : HZ/16,
+            ,instant_update ? 0 : wheel_touched() || frames_held() ? 1 : HZ/16,
             get_context_map);
 #ifdef ITUNESDB_HAVE_ART
-        /* back from Now Playing to the tracks it was left from: Select's
-           steps from the cover once the covers in view are in, the second
-           skipping the turn, then the track playing selected. A press as
-           they load goes first, and the covers show as they are */
+        /* back from Now Playing to the tracks it was left from: shown at
+           once at the track playing once the covers in view are in, or else
+           by Select's steps from the cover, the second skipping the turn. A
+           press as they load goes first, and the covers show as they are */
         if (open_tracks_at_start && button == ACTION_NONE)
         {
-            if (pf_state == pf_cover_in
-                || (pf_state == pf_idle && view_slides_loaded()))
+            if (pf_state == pf_idle && view_slides_loaded() && open_tracks_now())
+            {
+                idle_shown = false; /* drawn next, the first frame */
+                open_tracks_at_start = false;
+            }
+            else if (pf_state == pf_cover_in
+                     || (pf_state == pf_idle && view_slides_loaded()))
                 button = PF_TRACKLIST;
             else if (pf_state != pf_idle)
             {
