@@ -1993,11 +1993,6 @@ bool ui_theme_set_section(int section, bool status_line)
 #endif
 }
 
-int ui_theme_section(void)
-{
-    return tone_section;
-}
-
 bool ui_theme_multicolor(void)
 {
 #ifdef HAVE_ACCENT

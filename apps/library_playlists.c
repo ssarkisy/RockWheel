@@ -2536,8 +2536,7 @@ static struct {
     const char *name, *above;
     bool name_shown;
     /* their texts, and the file of the song whose menu is open: here rather
-       than on main's stack, under the screens nested over the list, as the
-       lists Go to Artist opens from a song's menu */
+       than on main's stack, under the song's menu over the list */
     char title_buf[MAX_PATH], above_buf[MAX_PATH], menu_file[MAX_PATH];
 } lp;
 
@@ -2894,8 +2893,8 @@ static bool lp_whole;
 
 /* the music from this song on, from the playlist's file, written first if
    it's behind the list. False if it didn't start. Its buffers, as those of
-   the other rows' work below, kept out of lp_view()'s frame, which the lists
-   opened from a song's menu are nested over */
+   the other rows' work below, kept out of lp_view()'s frame, which the
+   song's menu is nested over */
 static bool NO_INLINE lp_play(int song)
 {
     /* the song chosen is one sold with a lock on it: said, nothing changes */
@@ -3563,14 +3562,9 @@ bool lp_playing_file(char *name, size_t size)
     return playing_playlist(name, size);
 }
 
-int lp_view_playing(void)
+int lp_view_playing_from(const char *file)
 {
-    char name[MAX_PATH];
-    if (!playing_playlist(name, sizeof(name)))
-        return -1;
-    lp.at_playing = true;
-    const int ret = lp_view(name, NULL);
-    lp.at_playing = false;
+    const int ret = lp_view_back(file, NULL);
     /* not to be read after all: the songs to come instead, rather than
        nothing */
     if (lp.unloaded)

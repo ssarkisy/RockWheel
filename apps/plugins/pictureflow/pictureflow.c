@@ -9307,7 +9307,9 @@ enum plugin_status plugin_start(const void *parameter)
     }
     atexit(cleanup);
 
-    if (init())
+    /* its albums are read only if it started: state_left() reads them */
+    const bool started = init();
+    if (started)
     {
         set_initial_slide(file_id3 ? file : NULL); /* may call splash */
 #ifdef ITUNESDB_HAVE_ART
@@ -9352,7 +9354,8 @@ enum plugin_status plugin_start(const void *parameter)
                                 && pf_state == pf_show_tracks
                                 && !show_tracks_while_browsing;
 #ifdef ITUNESDB_HAVE_ART
-        state_left();
+        if (started)
+            state_left();
 #endif
 
         if (configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS,

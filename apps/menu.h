@@ -191,8 +191,9 @@ bool menu_in_settings(void);
 /* Whether the menu over Now Playing is open, as menu_in_settings(), and
    none of the screens its rows open (menu_now_playing_away()) is */
 bool menu_in_now_playing(void);
-/* a screen a row of the menu over Now Playing opens, as Up Next, opened
-   (true) and closed (false): its own menus aren't that menu's */
+/* a screen a row of the menu over Now Playing opens over it, as Chapters,
+   Add to Playlist's catalogue or a hotkey's, opened (true) and closed
+   (false): its own menus aren't that menu's */
 void menu_now_playing_away(bool away);
 int do_menu(const struct menu_item_ex *menu, int *start_selected,
             struct viewport parent[NB_SCREENS], bool hide_theme);

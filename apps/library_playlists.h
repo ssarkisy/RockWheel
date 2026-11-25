@@ -168,10 +168,11 @@ void lp_rows_free(void);
 bool lp_rows_loaded(void);
 
 /* Now Playing's Playing From for music from a playlist, of Playlists,
-   On-The-Go or another: whether it is, and its screen at the song playing,
-   -1 if not. Up Next is the queue's own screen (playlist_viewer.c). */
+   On-The-Go or another: whether it is; and that playlist's screen, as
+   lp_view_back() opens it, or Up Next, the queue's own screen
+   (playlist_viewer.c), if its songs can't be read */
 bool lp_playing_from_known(void);
-int lp_view_playing(void);
+int lp_view_playing_from(const char *file);
 /* the file of the playlist the music is from, as that opens it: false for
    none */
 bool lp_playing_file(char *name, size_t size);

@@ -129,14 +129,15 @@ static bool music_from_main_menu = false;
    As one is added, a tail of two blocks of the same screens, two or more in
    each, is one: the older block goes, as Music, Now Playing, Cover Flow, Now
    Playing, Cover Flow, Now Playing ends as Music, Now Playing, Cover Flow,
-   Now Playing, the newest of each kept. The same screen by its kind: Cover
-   Flow at any album, a list of the same kind (tagtree_list_type()) */
+   Now Playing, the newest of each kept. The same screen by its kind and
+   type: Cover Flow at any album, a list of the same kind
+   (tagtree_list_type()), a plugin's screen by its key's phrase */
 #ifdef HAVE_TAGCACHE
 #define NAV_MAX TAGTREE_NAV_SLOTS
 #else
 #define NAV_MAX 16
 #endif
-enum { NAV_SCREEN, NAV_LISTS, NAV_COVER_FLOW, NAV_PLAYLIST };
+enum { NAV_SCREEN, NAV_LISTS, NAV_COVER_FLOW, NAV_PLAYLIST, NAV_PLUGIN };
 /* the playlist playing's screen, from Now Playing's Playing From: a screen of
    the root loop's own (load_next_screen), not one of the main menu's */
 #define GO_TO_PLAYLIST_SONGS (-101)
@@ -194,7 +195,8 @@ static void nav_collapse(void)
         {
             const int a = nav_count - 2 * len, b = nav_count - len;
             int k = 0;
-            while (k < len && nav[a + k].type == nav[b + k].type)
+            while (k < len && nav[a + k].kind == nav[b + k].kind
+                   && nav[a + k].type == nav[b + k].type)
                 k++;
             if (k < len)
                 continue;
@@ -205,20 +207,26 @@ static void nav_collapse(void)
     }
 }
 
-static void nav_push(int screen, int kind)
+/* its type set before the tail is looked at */
+static void nav_push_as(int screen, int kind, uint32_t type)
 {
     if (nav_count == NAV_MAX)
         nav_drop(0);
     struct nav_entry *e = &nav[nav_count++];
     e->screen = screen;
     e->kind = kind;
-    e->type = nav_type_of(screen, kind);
+    e->type = type;
     strmemccpy(e->state, nav_fresh, sizeof(e->state));
     nav_fresh[0] = '\0';
 #ifdef HAVE_TAGCACHE
     tagtree_nav_clear(nav_count - 1);
 #endif
     nav_collapse();
+}
+
+static void nav_push(int screen, int kind)
+{
+    nav_push_as(screen, kind, nav_type_of(screen, kind));
 }
 
 static void nav_clear(void)
@@ -1008,14 +1016,14 @@ static int playlist_view(void * param)
 
 #ifdef HAVE_TAGCACHE
 /* the playlist playing's screen, by its file, from Playing From: back at the
-   song playing, if the music is from it still */
+   song playing, if the music is from it still; Up Next if it can't be read */
 static int playlist_songs(void)
 {
     const struct nav_entry *e = nav_top();
     if (!e || !e->state[0])
         return GO_TO_PREVIOUS;
     push_current_activity(ACTIVITY_PLAYLISTBROWSER);
-    const int ret = viewer_screen(lp_view_back(e->state, NULL));
+    const int ret = viewer_screen(lp_view_playing_from(e->state));
     if (ret == GO_TO_WPS)
         pop_current_activity_without_refresh();
     else
@@ -2941,8 +2949,8 @@ void root_menu(void)
                 if (nav_again && nav_top())
                     key = ID2P((int)nav_top()->type);
                 else
-                    nav_push(GO_TO_PLUGIN, NAV_SCREEN);
-                nav_top()->type = P2ID((unsigned char *)key);
+                    nav_push_as(GO_TO_PLUGIN, NAV_PLUGIN,
+                                P2ID((unsigned char *)key));
                 nav_again = nav_from_wps = false;
                 next_screen = load_plugin_screen(key);
                 if (root_menu_leave_asked())

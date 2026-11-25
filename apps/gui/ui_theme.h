@@ -428,8 +428,6 @@ unsigned ui_theme_colour_swatch(int colour, int quarter);
    selection, which the lists take as they draw, and its pictures, the
    status line drawn whole */
 bool ui_theme_set_section(int section, bool status_line);
-/* the section last set, to set again on going back to its screen */
-int ui_theme_section(void);
 /* the section changes the colours: Multicolor, in a theme with a tone or
    in Classic */
 bool ui_theme_multicolor(void);

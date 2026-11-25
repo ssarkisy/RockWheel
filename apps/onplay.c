@@ -583,10 +583,8 @@ static int add_to_picked_playlist(void)
     }
     /* a song of Music's lists by its file, while the list has it, kept
        where prepare_database_sel() keeps one: the catalogue's listing takes
-       the list's room, which the list's own loop loads again after the menu,
-       as for Go to Artist (ONPLAY_RELOAD_DIR). Loaded here, under the menu,
-       All Songs nested in the lists opened from a playlist's song went
-       deepest on main's stack */
+       the list's room, which the list's own loop loads again after the menu
+       (ONPLAY_RELOAD_DIR) */
     else if (selected_file.context == CONTEXT_ID3DB
              && (selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_AUDIO
              && tagtree_selected_song_file(selected_file.buf,

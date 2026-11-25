@@ -8915,8 +8915,9 @@ bool tagtree_play_found(int tag, const char *name, int32_t artist,
     play_whole = false;
     /* the place it was started from, which Search's own rows have none of:
        the list opened, as after Select on the album and that song
-       (go_to_browse()), where Playing From goes; for the songs gathered, the
-       row of the artist found, as for Music's rows (tagtree_play_row()) */
+       (root_menu.c go_to_asked()), where Playing From goes; for the songs
+       gathered, the row of the artist found, as for Music's rows
+       (tagtree_play_row()) */
     if (rc == 2)
         tagtree_save_place(c->dirlevel, from_row);
     tagtree_end_go_to(true, dirlevel, selected_item);

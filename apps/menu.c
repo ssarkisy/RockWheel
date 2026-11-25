@@ -1263,10 +1263,9 @@ static int init_menu_lists(const struct menu_item_ex *menu,
            menu open is Settings, as Settings > Now Playing Menu's too), and
            the menu over Now Playing's and its own rows' menus, as the
            Equalizer's (menu_in_now_playing()), whose rows are settings too;
-           not the menus of the screens its rows open, as Up Next's or Go to
-           Album's lists' song menus, nor the other lists as wide, as
-           Extras, System, a song's menu or a plugin's, which show values
-           too (menu_shows_values()) */
+           not the menus of the screens its rows open over it, as a hotkey's,
+           Pitch's, nor the other lists as wide, as Extras, System, a song's
+           menu or a plugin's, which show values too (menu_shows_values()) */
         if (ui_metric(UI_METRIC_SETTINGS_TWO_LINES)
             && (menu_in_settings() || menu_in_now_playing()))
             gui_synclist_set_subline_callback(lists, menu_value_line);
@@ -1453,10 +1452,11 @@ bool menu_in_settings(void)
     return tree_root == &main_menu_;
 }
 
-/* The screens a row of the menu over Now Playing opens, as Up Next, Cover
-   Flow or the lists Go to Album opens, whose menus are theirs, not its: how
-   many are open (menu_now_playing_away()). Its own rows' lists, as the
-   Equalizer's, are its */
+/* The screens a row of the menu over Now Playing opens over it, as Chapters,
+   Add to Playlist's catalogue or a hotkey's, whose menus are theirs, not
+   its: how many are open (menu_now_playing_away()). Its own rows' lists, as
+   the Equalizer's, are its; Up Next, Cover Flow and the lists of Go to
+   Album open after it and Now Playing have closed */
 static int now_playing_away;
 
 void menu_now_playing_away(bool away)
