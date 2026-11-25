@@ -117,42 +117,218 @@ static int last_db_dirlevel = 0, last_db_selection = 0;
 #ifdef HAVE_TAGCACHE
 /* Music chosen in the main menu, which opens it at its own menu */
 static bool music_from_main_menu = false;
-/* A section of Music in the main menu (music_section) whose lists were left
-   for Now Playing or a plugin, and not by Menu: the lists are still where it was
-   left, to go back to. 0 for none, or else its phrase. */
-static int section_left_in = 0;
-static bool in_section = false;
-/* where Search goes back to: Music, or the main menu it was opened from */
-static int search_back = GO_TO_DBBROWSER;
-static bool cover_flow_from_main_menu = false;
 #endif
 
-/* Menu in Now Playing goes back to the screen it was opened from, in its state
-   (the owner's rule, 2026-11-24). The root loop's last_screen is that screen,
-   but for those opened inside it, which unwound on the way to Now Playing and
-   are opened again in turn, at the root, so nothing nests: the lists of a
-   go-to, as Search's artist (wps_back_lists), as they were left, Menu going
-   up them to the go-to's first level (lists_go_to_level) and on, and Cover
-   Flow opened from Music or the main menu (wps_back_cover_flow), whose own
-   Menu goes on to wps_cover_flow_back. Set as Now Playing opens, from what the
-   screen before left for it with (left_lists, left_cover_flow), which only a
-   screen outside Now Playing sets (wps_showing). */
-static bool wps_showing;
-static bool left_lists, left_cover_flow;
-static bool wps_back_lists, wps_back_cover_flow;
-static int lists_go_to_level = -1;
-/* a menu over Now Playing asked to go back to the screen under it, as Menu
-   does, rather than open it again over it: the loop rule (2026-11-24) */
-static bool wps_leave_asked;
-/* Now Playing left for the screen it came from, which is to show the song
-   playing (tree_select_playing()) */
-static bool wps_left;
-/* and Cover Flow there, as it was left for Now Playing, its Menu then where it
-   was opened from: Music, or the main menu */
-static bool wps_leave_to_cover_flow;
-static int wps_cover_flow_back = GO_TO_DBBROWSER;
+/* The history (the owner's rule, 2026-11-25): the screens Menu goes back
+   through, one at a time, to the main menu under them all, the newest last,
+   each with what it opens again as it was left: a list its place
+   (tagtree_nav_save(), by the entry's index), Cover Flow what it said as it
+   quit (root_menu_cover_flow_left()), the playlist playing's screen its file.
+   Every one is opened by the root loop, none inside another, so the stack
+   doesn't grow with it. At most NAV_MAX: past that the oldest is forgotten.
+   As one is added, a tail of two blocks of the same screens, two or more in
+   each, is one: the older block goes, as Music, Now Playing, Cover Flow, Now
+   Playing, Cover Flow, Now Playing ends as Music, Now Playing, Cover Flow,
+   Now Playing, the newest of each kept. The same screen by its kind: Cover
+   Flow at any album, a list of the same kind (tagtree_list_type()) */
 #ifdef HAVE_TAGCACHE
-static int go_to_browse(bool found, unsigned int starts);
+#define NAV_MAX TAGTREE_NAV_SLOTS
+#else
+#define NAV_MAX 16
+#endif
+enum { NAV_SCREEN, NAV_LISTS, NAV_COVER_FLOW, NAV_PLAYLIST };
+/* the playlist playing's screen, from Now Playing's Playing From: a screen of
+   the root loop's own (load_next_screen), not one of the main menu's */
+#define GO_TO_PLAYLIST_SONGS (-101)
+static struct nav_entry {
+    int16_t screen;
+    uint8_t kind;
+    uint32_t type;
+    char state[MAX_PATH];
+} nav[NAV_MAX];
+static int nav_count;
+/* the root loop opens the top one again, as it was left; and it comes from
+   Now Playing, gone back from or left */
+static bool nav_again, nav_from_wps;
+/* the state of the entry added next */
+static char nav_fresh[MAX_PATH];
+
+static struct nav_entry *nav_top(void)
+{
+    return nav_count > 0 ? &nav[nav_count - 1] : NULL;
+}
+
+static uint32_t nav_type_of(int screen, int kind)
+{
+#ifdef HAVE_TAGCACHE
+    if (kind == NAV_LISTS)
+        return tagtree_list_type();
+#endif
+    return (uint32_t)(screen & 0xff) << 24 | kind;
+}
+
+/* entry i gone, those after it one down */
+static void nav_drop(int i)
+{
+    for (int k = i; k + 1 < nav_count; k++)
+    {
+        nav[k] = nav[k + 1];
+#ifdef HAVE_TAGCACHE
+        tagtree_nav_copy(k, k + 1);
+#endif
+    }
+    nav_count--;
+#ifdef HAVE_TAGCACHE
+    tagtree_nav_clear(nav_count);
+#endif
+}
+
+/* a tail of two blocks of the same screens: the older goes, again until none */
+static void nav_collapse(void)
+{
+    bool again = true;
+    while (again)
+    {
+        again = false;
+        for (int len = 2; 2 * len <= nav_count && !again; len++)
+        {
+            const int a = nav_count - 2 * len, b = nav_count - len;
+            int k = 0;
+            while (k < len && nav[a + k].type == nav[b + k].type)
+                k++;
+            if (k < len)
+                continue;
+            for (k = 0; k < len; k++)
+                nav_drop(a);
+            again = true;
+        }
+    }
+}
+
+static void nav_push(int screen, int kind)
+{
+    if (nav_count == NAV_MAX)
+        nav_drop(0);
+    struct nav_entry *e = &nav[nav_count++];
+    e->screen = screen;
+    e->kind = kind;
+    e->type = nav_type_of(screen, kind);
+    strmemccpy(e->state, nav_fresh, sizeof(e->state));
+    nav_fresh[0] = '\0';
+#ifdef HAVE_TAGCACHE
+    tagtree_nav_clear(nav_count - 1);
+#endif
+    nav_collapse();
+}
+
+static void nav_clear(void)
+{
+    while (nav_count > 0)
+        nav_drop(nav_count - 1);
+}
+
+/* The top one closed by Menu: the screen to open again under it, the main
+   menu under them all */
+static int nav_back(void)
+{
+    if (nav_count > 0)
+        nav_drop(nav_count - 1);
+    const struct nav_entry *e = nav_top();
+    if (!e)
+        return GO_TO_ROOT;
+    nav_again = true;
+    return e->screen;
+}
+
+static int nav_kind_of(int screen)
+{
+#ifdef HAVE_TAGCACHE
+    if (screen == GO_TO_DBBROWSER || (screen >= GO_TO_ARTISTS
+                                      && screen <= GO_TO_COMPILATIONS))
+        return NAV_LISTS;
+    if (screen == GO_TO_COVER_FLOW)
+        return NAV_COVER_FLOW;
+#endif
+    if (screen == GO_TO_PLAYLIST_SONGS)
+        return NAV_PLAYLIST;
+    return NAV_SCREEN;
+}
+
+/* A screen asked for from within another, the root loop's to open over it,
+   once that one has left as for Now Playing (root_menu_leave_asked()) */
+enum {
+    ASK_NONE, ASK_COVER_FLOW, ASK_UP_NEXT, ASK_PLAYLIST, ASK_PLAYING, ASK_FROM,
+    ASK_TRACK, ASK_SONG, ASK_NAME, ASK_ALBUM,
+};
+static struct {
+    int what;
+    bool artist;
+    int idx, tag;
+    int32_t key;
+    char text[MAX_PATH];
+} asked;
+
+static void ask(int what, bool artist, const char *text)
+{
+    asked.what = what;
+    asked.artist = artist;
+    strmemccpy(asked.text, text ? text : "", sizeof(asked.text));
+}
+
+bool root_menu_leave_asked(void)
+{
+    return asked.what != ASK_NONE;
+}
+
+void root_menu_ask_cover_flow(void)
+{
+    ask(ASK_COVER_FLOW, false, NULL);
+}
+
+void root_menu_ask_up_next(void)
+{
+    ask(ASK_UP_NEXT, false, NULL);
+}
+
+void root_menu_ask_playlist(const char *file)
+{
+    ask(ASK_PLAYLIST, false, file);
+}
+
+void root_menu_ask_go_to_playing(bool artist)
+{
+    ask(ASK_PLAYING, artist, NULL);
+}
+
+void root_menu_ask_playing_from(void)
+{
+    ask(ASK_FROM, false, NULL);
+}
+
+void root_menu_ask_go_to_track(const char *path, bool artist)
+{
+    ask(ASK_TRACK, artist, path);
+}
+
+void root_menu_ask_go_to_song(int idx, bool artist)
+{
+    ask(ASK_SONG, artist, NULL);
+    asked.idx = idx;
+}
+
+void root_menu_ask_go_to_name(int tag, const char *name)
+{
+    ask(ASK_NAME, false, name);
+    asked.tag = tag;
+}
+
+void root_menu_ask_go_to_album(const char *name, int32_t artist)
+{
+    ask(ASK_ALBUM, false, name);
+    asked.key = artist;
+}
+
+#ifdef HAVE_TAGCACHE
 static bool is_section_screen(int screen)
 {
     return screen >= GO_TO_ARTISTS && screen <= GO_TO_COMPILATIONS;
@@ -161,8 +337,8 @@ static bool is_section_screen(int screen)
 
 /* The music's origin, which Playing From goes to: started from Music's lists,
    the place there (tagtree_save_place()). Each start once, by the screen it
-   was made in; Cover Flow takes its own (root_menu_cover_flow()), so that the
-   lists under it aren't taken for it */
+   was made in; Cover Flow takes its own (cover_flow()), so that the lists
+   under it aren't taken for it */
 static unsigned int music_starts_seen;
 
 static void note_music_origin(int screen)
@@ -180,8 +356,8 @@ static void note_music_origin(int screen)
 }
 
 /* the song of Cover Flow's Go to Artist, "" for none; offered only while
-   root_menu_cover_flow() has it open, which goes there, and not as a plugin
-   of a file's menu or a hotkey opens it */
+   cover_flow() has it open, which goes there, and not as a plugin of a file's
+   menu or a hotkey opens it */
 static char cover_flow_go_to[MAX_PATH];
 static bool cover_flow_go_to_offered;
 
@@ -192,148 +368,98 @@ bool root_menu_go_to_later(const char *path)
     return cover_flow_go_to_offered;
 }
 
-int root_menu_cover_flow(const char *at, char *go_to)
+void root_menu_cover_flow_left(const char *state)
 {
+    struct nav_entry *e = nav_top();
+    if (cover_flow_go_to_offered && e && e->kind == NAV_COVER_FLOW && state)
+        strmemccpy(e->state, state, sizeof(e->state));
+}
+
 #ifdef HAVE_TAGCACHE
-    char back[MAX_PATH];
-#endif
-    while (true)
+/* Cover Flow, its entry the top one: at the album playing, or with its state
+   as it was left (root_menu_cover_flow_left()). Its Go to Artist is the
+   lists' entry over it */
+static int cover_flow(const char *at)
+{
+    /* Music's, from wherever it opens, without the status line, which
+       the screen it goes back to draws in its own again */
+    ui_theme_set_section(UI_SECTION_MUSIC, false);
+    cover_flow_go_to[0] = '\0';
+    cover_flow_go_to_offered = true;
+    const int ret = plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", at);
+    cover_flow_go_to_offered = false;
+    /* music started there is Cover Flow's, not the lists' it was
+       opened over (note_music_origin()) */
+    music_starts_seen = playlist_start_count();
+    if (ret == PLUGIN_OK && cover_flow_go_to[0])
     {
-        /* Music's, from wherever it opens, without the status line, which
-           the screen it goes back to draws in its own again */
-        ui_theme_set_section(UI_SECTION_MUSIC, false);
-        cover_flow_go_to[0] = '\0';
-#ifdef HAVE_TAGCACHE
-        cover_flow_go_to_offered = true;
-#endif
-        const int ret = plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", at);
-        cover_flow_go_to_offered = false;
-        /* left for Now Playing, which Menu there brings back here */
-        left_cover_flow = ret == PLUGIN_GOTO_WPS && !wps_showing;
-        if (left_cover_flow)
-            wps_cover_flow_back = cover_flow_from_main_menu ? GO_TO_ROOT
-                                                            : GO_TO_DBBROWSER;
-        /* music started there is Cover Flow's, not the lists' it was
-           opened over (note_music_origin()) */
-        music_starts_seen = playlist_start_count();
-        if (go_to)
-            strmemccpy(go_to, ret == PLUGIN_OK ? cover_flow_go_to : "", MAX_PATH);
-#ifdef HAVE_TAGCACHE
-        if (ret != PLUGIN_OK || go_to || !cover_flow_go_to[0])
-            return ret;
-        strmemccpy(back, cover_flow_go_to, sizeof(back));
-        switch (root_menu_go_to_track(back, true))
-        {
-            case GO_TO_NOT_FOUND: /* no artist found */
-            case 0: /* Menu there: Cover Flow at it again */
-                at = back;
-                break;
-            case GO_TO_WPS:
-            case GO_TO_PREVIOUS_MUSIC:
-                /* Menu in Now Playing back to the lists, then here */
-                left_cover_flow = !wps_showing;
-                if (left_cover_flow)
-                    wps_cover_flow_back = cover_flow_from_main_menu ?
-                                          GO_TO_ROOT : GO_TO_DBBROWSER;
-                return PLUGIN_GOTO_WPS;
-            case GO_TO_PLUGIN:
-                return PLUGIN_GOTO_PLUGIN;
-            default:
-                return PLUGIN_GOTO_ROOT;
-        }
-#else
-        return ret;
-#endif
+        root_menu_ask_go_to_track(cover_flow_go_to, true);
+        return PLUGIN_GOTO_WPS;
     }
+    return ret;
 }
 
-#ifdef HAVE_TAGCACHE
-/* Cover Flow again, at the root, as Now Playing's Menu goes back to it: at the
-   album playing, as it was left (ITUNESDB_COVER_FLOW_BACK); its Menu then
-   where it was opened from. A track chosen there goes to Now Playing again,
-   from Cover Flow (root_menu_cover_flow() notes it) */
-static int cover_flow_again(void)
+/* The lists asked for, at the root, their place set: the entry added for them
+   next; false if they weren't found */
+static bool go_to_asked(void)
 {
-    const int back = wps_cover_flow_back;
-    cover_flow_from_main_menu = back == GO_TO_ROOT;
-    /* the screen left, Now Playing or the go-to's lists Menu went back to
-       first (wps_go_back()), on the screen until Cover Flow draws, as when
-       it opens over Now Playing */
-    plugin_load_keep_screen();
-#ifdef ITUNESDB_HAVE_ART
-    const int ret = root_menu_cover_flow(ITUNESDB_COVER_FLOW_BACK, NULL);
-#else
-    const int ret = root_menu_cover_flow(NULL, NULL);
-#endif
-    cover_flow_from_main_menu = false;
-    switch (ret)
-    {
-        case PLUGIN_GOTO_WPS:
-            return GO_TO_WPS;
-        case PLUGIN_GOTO_ROOT:
-            return GO_TO_ROOT;
-        case PLUGIN_GOTO_PLUGIN:
-            return GO_TO_PLUGIN;
-        default:
-            return back;
-    }
-}
-#endif
-
-/* Menu in Now Playing, however it was opened, Play held too: the screens it
-   was opened from that unwound on the way, opened again here in turn, the
-   lists of a go-to first, then Cover Flow; else the root loop's screen before
-   it */
-static int wps_go_back(int otherwise)
-{
-    const bool to_cover_flow = wps_leave_to_cover_flow;
-    wps_leave_to_cover_flow = false;
-#ifdef HAVE_TAGCACHE
-    if (wps_back_lists && !to_cover_flow)
-    {
-        /* as Music's own lists: as left, at the song playing if they show
-           it, or at the row Play was pressed on */
-        const unsigned int starts = playlist_start_count();
-        if (tagtree_resume_go_to(lists_go_to_level, &last_db_dirlevel,
-                                 &last_db_selection))
-        {
-            tree_select_playing(true);
-            const int screen = go_to_browse(true, starts);
-            if (screen != 0)
-            {
-                /* left for another screen; for Now Playing, from them
-                   again, and from Cover Flow under them */
-                if (screen == GO_TO_WPS || screen == GO_TO_PREVIOUS_MUSIC)
-                    left_cover_flow = wps_back_cover_flow;
-                return screen;
-            }
-        }
-    }
-    if (wps_back_cover_flow)
-        return cover_flow_again();
-#else
-    (void)to_cover_flow;
-#endif
-    return otherwise;
-}
-
-bool root_menu_wps_leave_asked(void)
-{
-    const bool asked = wps_leave_asked;
-    wps_leave_asked = false;
-    return asked;
-}
-
-#ifdef HAVE_TAGCACHE
-bool root_menu_back_to_cover_flow(void)
-{
-    if (!wps_showing || !wps_back_cover_flow)
+    if (!tagtree_ready() || !tagcache_is_usable())
         return false;
-    wps_leave_asked = true;
-    wps_leave_to_cover_flow = true;
-    return true;
+    int *const d = &last_db_dirlevel, *const s = &last_db_selection;
+    switch (asked.what)
+    {
+        case ASK_PLAYING:
+            return tagtree_go_to_playing(asked.artist, d, s);
+        case ASK_FROM:
+            return tagtree_go_to_from(d, s);
+        case ASK_TRACK:
+            return tagtree_go_to_track(asked.text, asked.artist, d, s);
+        case ASK_SONG:
+            return tagtree_go_to_song(asked.idx, asked.artist, d, s);
+        case ASK_NAME:
+            return tagtree_go_to_name(asked.tag, asked.text, d, s);
+        case ASK_ALBUM:
+            return tagtree_go_to_album(asked.text, asked.key, d, s);
+    }
+    return false;
 }
 #endif
+
+/* The screen asked for, the one left under it: the screen to open next, a new
+   entry; or that one again, if what was asked for isn't there */
+static int nav_open_asked(void)
+{
+    int screen = GO_TO_PREVIOUS;
+    switch (asked.what)
+    {
+#ifdef HAVE_TAGCACHE
+        case ASK_COVER_FLOW:
+            screen = GO_TO_COVER_FLOW;
+            break;
+#endif
+        case ASK_UP_NEXT:
+            screen = GO_TO_PLAYLIST_VIEWER;
+            break;
+        case ASK_PLAYLIST:
+            strmemccpy(nav_fresh, asked.text, sizeof(nav_fresh));
+            screen = GO_TO_PLAYLIST_SONGS;
+            break;
+        default:
+#ifdef HAVE_TAGCACHE
+            if (go_to_asked())
+                screen = GO_TO_DBBROWSER;
+#endif
+            break;
+    }
+    asked.what = ASK_NONE;
+    if (screen != GO_TO_PREVIOUS)
+        return screen;
+    const struct nav_entry *e = nav_top();
+    if (!e)
+        return GO_TO_ROOT;
+    nav_again = true;
+    return e->screen;
+}
 
 #if (CONFIG_TUNER)
 static void rootmenu_start_playback_callback(unsigned short id, void *param)
@@ -525,13 +651,18 @@ static int browser(void* param)
                 /* the lists not opened: what was to show in them as they
                    opened goes too */
                 tree_select_playing(false);
-                tagtree_forget_browse(false, 0);
                 return GO_TO_PREVIOUS;
             }
             filter = SHOW_ID3DB;
-            if (!in_section)
-                section_left_in = 0;
             last_ft_dirlevel = tc->dirlevel;
+            /* their entry's, as they were left; back from Now Playing at the
+               song playing, if they show it (tree_select_playing()) */
+            if (nav_again)
+            {
+                tagtree_nav_restore(nav_count - 1, &last_db_dirlevel,
+                                    &last_db_selection);
+                tree_select_playing(nav_from_wps);
+            }
             tc->dirlevel = last_db_dirlevel;
             tc->selected_item = last_db_selection;
             if (music_from_main_menu)
@@ -576,12 +707,15 @@ static int browser(void* param)
             last_db_dirlevel = tc->dirlevel;
             last_db_selection = tc->selected_item;
             tc->dirlevel = last_ft_dirlevel;
-            /* a list opened in place by Go to stays as it is, Menu going up
-               from it as by hand; but left for Now Playing, whose Menu opens
-               it again as it was, Menu there back to its song */
-            tagtree_forget_browse(!wps_showing && (ret_val == GO_TO_WPS
-                                                   || ret_val == GO_TO_PREVIOUS_MUSIC),
-                                  last_db_dirlevel);
+            /* as they were left, for their entry to open again so; and no
+               go-to's level or section for the next lists */
+            if (nav_count > 0 && nav_top()->kind == NAV_LISTS)
+            {
+                tagtree_nav_save(nav_count - 1, last_db_dirlevel,
+                                 last_db_selection);
+                nav_top()->type = tagtree_nav_type(nav_count - 1);
+            }
+            tagtree_end_go_to(false, &last_db_dirlevel, &last_db_selection);
         break;
 #endif
     }
@@ -589,120 +723,6 @@ static int browser(void* param)
 }
 
 #ifdef HAVE_TAGCACHE
-/* The Music lists at the track playing, from the menu over Now Playing. Menu in the
-   list opened goes back to that menu, and the place in the lists stays as it was,
-   unless music was started from them. 0 for going back, or else the screen to go to. */
-/* the lists opened by a go-to, if it found its place, and left;
-   GO_TO_NOT_FOUND if it didn't, apart from GO_TO_ROOT, held Menu there */
-static int go_to_browse(bool found, unsigned int starts)
-{
-    if (!found)
-        return GO_TO_NOT_FOUND;
-    /* the screen gone back to in its own section again, as Playlists after
-       a podcast's lists */
-    const int section = ui_theme_section();
-    const int screen = browser((void*)GO_TO_DBBROWSER);
-    const bool started = playlist_start_count() != starts;
-    if (started)
-        note_music_origin(GO_TO_DBBROWSER);
-    /* Now Playing from them, opened over another screen than Now Playing,
-       with music started there or not (the song playing chosen, the screen
-       gone dark): Menu there brings them back (wps_go_back()) */
-    left_lists = !wps_showing
-                 && (screen == GO_TO_WPS || screen == GO_TO_PREVIOUS_MUSIC);
-    if (started || left_lists)
-    {
-        /* where Menu leaves them, for when they open again; kept as left if
-           Music's own place is to come back */
-        lists_go_to_level = tagtree_go_to_level();
-        tagtree_left_go_to(left_lists && !started, last_db_dirlevel,
-                           last_db_selection);
-    }
-    tagtree_end_go_to(!started, &last_db_dirlevel, &last_db_selection);
-    if (screen == GO_TO_PREVIOUS)
-        ui_theme_set_section(section, true);
-    return screen == GO_TO_PREVIOUS ? 0 : screen;
-}
-
-/* The menu over Now Playing again (0) if nothing was found, or by Menu in
-   the lists; held Menu and held Play there go on to the main menu and to Now
-   Playing, as from the lists anywhere */
-static int go_to_from_menu(int screen)
-{
-    return screen > 0 || screen == GO_TO_ROOT || screen == GO_TO_PREVIOUS_MUSIC
-           ? screen : 0;
-}
-
-/* Now Playing was opened from Music's lists, under it: themselves, or a
-   go-to's, which its Menu opens again */
-static bool wps_over_lists(void)
-{
-    if (!wps_showing)
-        return false;
-    return wps_back_lists
-           || (!wps_back_cover_flow
-               && (last_screen == GO_TO_DBBROWSER || is_section_screen(last_screen)));
-}
-
-/* A go-to from the menu over Now Playing that found the list Now Playing was
-   opened from, as Playing From after Select in it, or one above it that Menu
-   would go up to, as Go to Artist from one of the artist's albums: back to
-   that one, as Menu goes, rather than a copy of it over Now Playing (the loop
-   rule, 2026-11-24): at the song playing, or at the row gone down from. Not
-   past the go-to's level of a go-to's lists, nor up to Music's own menu. True
-   if it goes there */
-static bool go_to_is_under(bool found)
-{
-    if (!found || !wps_over_lists()
-        || !tagtree_go_to_is_open(wps_back_lists,
-                                  wps_back_lists ? lists_go_to_level : 1))
-        return false;
-    tagtree_end_go_to(true, &last_db_dirlevel, &last_db_selection);
-    wps_leave_asked = true;
-    return true;
-}
-
-int root_menu_go_to_playing(bool artist)
-{
-    const unsigned int starts = playlist_start_count();
-    const bool found = tagtree_go_to_playing(artist, &last_db_dirlevel,
-                                             &last_db_selection);
-    if (go_to_is_under(found))
-        return GO_TO_WPS;
-    return go_to_from_menu(go_to_browse(found, starts));
-}
-
-int root_menu_go_to_track(const char *path, bool artist)
-{
-    const unsigned int starts = playlist_start_count();
-    return go_to_browse(tagtree_go_to_track(path, artist, &last_db_dirlevel,
-                                            &last_db_selection), starts);
-}
-
-int root_menu_playing_from(void)
-{
-    const unsigned int starts = playlist_start_count();
-    const bool found = tagtree_go_to_from(&last_db_dirlevel, &last_db_selection);
-    if (go_to_is_under(found))
-        return GO_TO_WPS;
-    return go_to_from_menu(go_to_browse(found, starts));
-}
-
-
-int root_menu_go_to_name(int tag, const char *name)
-{
-    const unsigned int starts = playlist_start_count();
-    return go_to_browse(tagtree_go_to_name(tag, name, &last_db_dirlevel,
-                                           &last_db_selection), starts);
-}
-
-int root_menu_go_to_album(const char *name, int32_t artist)
-{
-    const unsigned int starts = playlist_start_count();
-    return go_to_browse(tagtree_go_to_album(name, artist, &last_db_dirlevel,
-                                            &last_db_selection), starts);
-}
-
 bool root_menu_play_found(int tag, const char *name, int32_t artist)
 {
     /* the lists' place as it was, and the file browser's level, which the
@@ -739,26 +759,30 @@ void root_menu_compilations_check(void)
 static int music_section(void *param)
 {
     const int lang = (intptr_t)param;
-    if (section_left_in == lang)
-        tagtree_resume_section(lang, &last_db_dirlevel, &last_db_selection);
-    else if (!tagtree_go_to_section(lang, &last_db_dirlevel, &last_db_selection))
+    if (!nav_again
+        && !tagtree_go_to_section(lang, &last_db_dirlevel, &last_db_selection))
         return GO_TO_ROOT;
-    in_section = true;
-    const int screen = browser((void*)GO_TO_DBBROWSER);
-    in_section = false;
-    const bool left_by_menu = screen == GO_TO_PREVIOUS || screen == GO_TO_ROOT;
-    tagtree_end_go_to(left_by_menu, &last_db_dirlevel, &last_db_selection);
-    section_left_in = left_by_menu ? 0 : lang;
-    return screen;
+    return browser((void*)GO_TO_DBBROWSER);
 }
 
-/* Cover Flow from the main menu, back to it */
+/* Cover Flow, from the main menu, Music's row or Now Playing: at the album
+   playing, or as it was left; Menu there back to the screen under it. From
+   Now Playing, Now Playing on the screen until Cover Flow draws, as when it
+   opened over Now Playing */
 static int cover_flow_screen(void *param)
 {
     (void)param;
-    cover_flow_from_main_menu = true;
-    const int ret = root_menu_cover_flow(NULL, NULL);
-    cover_flow_from_main_menu = false;
+    const struct nav_entry *e = nav_top();
+    const char *at = NULL;
+#ifdef ITUNESDB_HAVE_ART
+    if (nav_again && e)
+        at = e->state[0] ? e->state : ITUNESDB_COVER_FLOW_BACK;
+#else
+    (void)e;
+#endif
+    if (nav_from_wps)
+        plugin_load_keep_screen();
+    const int ret = cover_flow(at);
     switch (ret)
     {
         case PLUGIN_GOTO_WPS:
@@ -772,15 +796,12 @@ static int cover_flow_screen(void *param)
     }
 }
 
-/* Search, whose Menu goes up to Music, or to the main menu it was opened from */
+/* Search, whose Menu goes back to the screen under it: Music, or the main
+   menu */
 static int search_screen(void *param)
 {
-    int screen = music_search_screen(param);
-    if (screen == GO_TO_DBBROWSER)
-        screen = search_back;
-    if (screen == GO_TO_DBBROWSER || screen == GO_TO_ROOT)
-        search_back = GO_TO_DBBROWSER;
-    return screen;
+    const int screen = music_search_screen(param);
+    return screen == GO_TO_DBBROWSER ? GO_TO_PREVIOUS : screen;
 }
 #endif
 
@@ -831,8 +852,6 @@ static int wpsscrn(void* param)
        taken on the way here, so the hold is still the last action. */
     const bool paused = !audstatus && action_last_action() == ACTION_TREE_STOP;
     (void)param;
-    /* the screens opened over it, which go back to it themselves */
-    wps_showing = true;
     /* the theme isn't drawn first: Now Playing clears the screen and draws
        it then, if it shows it at all. Drawn whole after a list it took
        140 ms, behind which the slide into Now Playing waited */
@@ -917,7 +936,6 @@ static int wpsscrn(void* param)
     else
         pop_current_activity();
 
-    wps_showing = false;
     return ret_val;
 }
 #if CONFIG_TUNER
@@ -966,22 +984,45 @@ static int playlist_view_catalog(void * param)
     return catalog_left_for_root() ? GO_TO_ROOT : GO_TO_PREVIOUS;
 }
 
-static int playlist_view(void * param)
+/* a playlist viewer's result as the root loop's: a song chosen, or the
+   screen gone dark, to Now Playing over it; Menu back to the screen under it */
+static int viewer_screen(int val)
 {
-    (void)param;
-    int val;
-
-    val = playlist_viewer();
     switch (val)
     {
         case PLAYLIST_VIEWER_MAINMENU:
         case PLAYLIST_VIEWER_USB:
             return GO_TO_ROOT;
         case PLAYLIST_VIEWER_OK:
-            return GO_TO_PREVIOUS;
+            return GO_TO_WPS;
     }
     return GO_TO_PREVIOUS;
 }
+
+/* Up Next, the music's songs to come */
+static int playlist_view(void * param)
+{
+    (void)param;
+    return viewer_screen(playlist_viewer());
+}
+
+#ifdef HAVE_TAGCACHE
+/* the playlist playing's screen, by its file, from Playing From: back at the
+   song playing, if the music is from it still */
+static int playlist_songs(void)
+{
+    const struct nav_entry *e = nav_top();
+    if (!e || !e->state[0])
+        return GO_TO_PREVIOUS;
+    push_current_activity(ACTIVITY_PLAYLISTBROWSER);
+    const int ret = viewer_screen(lp_view_back(e->state, NULL));
+    if (ret == GO_TO_WPS)
+        pop_current_activity_without_refresh();
+    else
+        pop_current_activity();
+    return ret;
+}
+#endif
 
 /* Photos, where its plugin is made for the screen (root_menu.h) */
 #ifdef HAVE_PHOTOS_MENU
@@ -1459,7 +1500,7 @@ static int get_selection(int last_screen)
 /* Multicolor's section of a screen of the main menu's, set as it opens
    (ui_theme_set_section()); -1 for one that sets its own: Music's lists by
    the level they open at, Now Playing by its track, which Shuffle goes to,
-   Cover Flow (root_menu_cover_flow()); and the current playlist, which keeps
+   Cover Flow (cover_flow()); and the current playlist, which keeps
    the one of the screen it's opened over */
 static int screen_section(int screen)
 {
@@ -2789,8 +2830,10 @@ void root_menu(void)
                         playlist_check_resume();
                 }
                 global_status.last_screen = GO_TO_ROOT; /* We've returned to ROOT */
-                wps_left = false;
-                left_lists = left_cover_flow = wps_leave_to_cover_flow = false;
+                /* the bottom of the history: none over it, by Menu, held Menu,
+                   USB or a boot */
+                nav_clear();
+                asked.what = ASK_NONE;
                 /* When we are in the main menu we want the hardware BACK
                  * button to be handled by HOST instead of rockbox */
                 ignore_back_button_stub(true);
@@ -2800,11 +2843,7 @@ void root_menu(void)
 #ifdef HAVE_TAGCACHE
                 music_from_main_menu = next_screen == GO_TO_DBBROWSER;
                 if (next_screen == GO_TO_SEARCH)
-                {
-                    /* Search added to the main menu, which Menu goes back to */
-                    music_search_new();
-                    search_back = GO_TO_ROOT;
-                }
+                    music_search_new(); /* Search added to the main menu */
 #endif
 
                 ignore_back_button_stub(false);
@@ -2836,6 +2875,13 @@ void root_menu(void)
 
             case GO_TO_PREVIOUS:
             {
+                /* the screen under it in the history; from the main menu
+                   itself, the screen left for it, as before */
+                if (nav_count > 0)
+                {
+                    next_screen = nav_back();
+                    break;
+                }
                 next_screen = last_screen;
                 if (last_screen == GO_TO_PLUGIN)/* for WPS */
                     last_screen = GO_TO_PREVIOUS;
@@ -2891,8 +2937,20 @@ void root_menu(void)
                     }
                 }
 
-                wps_left = false;
+                /* an entry of the history, opened again by its key */
+                if (nav_again && nav_top())
+                    key = ID2P((int)nav_top()->type);
+                else
+                    nav_push(GO_TO_PLUGIN, NAV_SCREEN);
+                nav_top()->type = P2ID((unsigned char *)key);
+                nav_again = nav_from_wps = false;
                 next_screen = load_plugin_screen(key);
+                if (root_menu_leave_asked())
+                {
+                    next_screen = nav_open_asked();
+                    break;
+                }
+                const bool closed = next_screen == GO_TO_PREVIOUS;
 
                 if (next_screen == GO_TO_PREVIOUS)
                 {
@@ -2921,6 +2979,14 @@ void root_menu(void)
                 }
                 previous_browser = (next_screen == GO_TO_WPS) ?
                                    GO_TO_PLUGIN : global_status.last_browser;
+                /* closed, for another screen than the one under it in the
+                   history (a shortcut's); that one again, as left */
+                if (closed && next_screen != GO_TO_PREVIOUS)
+                {
+                    nav_drop(nav_count - 1);
+                    if (nav_top() && next_screen == nav_top()->screen)
+                        nav_again = true;
+                }
                 break;
             }
             default:
@@ -2931,35 +2997,31 @@ void root_menu(void)
 load_next_screen: /* load_screen is inlined */
         {
             const int screen = next_screen;
-            /* the screens Now Playing goes back to, by what the one before it
-               left for it with; the others note it as they leave, if they
-               do it from inside */
-            if (screen == GO_TO_WPS)
-            {
-                wps_back_lists = left_lists;
-                wps_back_cover_flow = left_cover_flow;
-                wps_leave_to_cover_flow = false;
-            }
-            left_lists = left_cover_flow = false;
+            /* a new entry of the history, or the top one again; not for an
+               action, as Shuffle Songs, which goes on to Now Playing */
+            const bool action =
 #ifdef HAVE_TAGCACHE
-            /* back from Now Playing to a list: at the song playing, a list
-               opened in place as it was left */
-            if (wps_left && (screen == GO_TO_DBBROWSER || is_section_screen(screen)))
-            {
-                tree_select_playing(true);
-                tagtree_resume_browse(last_db_dirlevel);
-            }
+                screen == GO_TO_SHUFFLE_SONGS || screen == GO_TO_SHUFFLE_ALBUMS ||
 #endif
-            wps_left = false;
-            next_screen = load_screen(screen);
+                false;
+            if (!nav_again && !action)
+                nav_push(screen, nav_kind_of(screen));
+#ifdef HAVE_TAGCACHE
+            if (screen == GO_TO_PLAYLIST_SONGS)
+                next_screen = playlist_songs();
+            else
+#endif
+                next_screen = load_screen(screen);
+            nav_again = false;
+            nav_from_wps = screen == GO_TO_WPS;
             note_music_origin(screen);
-            if (screen == GO_TO_WPS)
-            {
-                wps_left = true;
-                if (next_screen == GO_TO_PREVIOUS)
-                    next_screen = wps_go_back(next_screen);
-            }
+            /* a screen asked for in it: over it, it left as for Now Playing */
+            if (root_menu_leave_asked())
+                next_screen = nav_open_asked();
+            /* an action's entry is none: Menu after it back to the screen
+               it was chosen in, the main menu */
+            else if (action && next_screen == GO_TO_PREVIOUS && nav_count == 0)
+                next_screen = GO_TO_ROOT;
         }
     }
-
 }

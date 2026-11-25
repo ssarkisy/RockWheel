@@ -2667,17 +2667,14 @@ static int open_result(int g, int index)
        apart */
     const int no = g == GROUP_ALBUMS && global_settings.album_artists ?
                    album_of(r) : -1;
-    int screen = g == GROUP_ALBUMS ?
-        root_menu_go_to_album(pool + r->name, no < 0 ? -1 : album_years_artist(no))
-        : root_menu_go_to_name(group_tag[g], pool + r->name);
-    /* not found; held Menu (GO_TO_ROOT) and held Play there go on to the
-       main menu and Now Playing, as from Search itself */
-    if (screen == GO_TO_NOT_FOUND)
-    {
-        transition_cancel();
-        return 0;
-    }
-    return screen;
+    /* its lists, the root loop's over Search, which is left for them as for
+       Now Playing (root_menu_leave_asked()), sliding in as they draw */
+    if (g == GROUP_ALBUMS)
+        root_menu_ask_go_to_album(pool + r->name,
+                                  no < 0 ? -1 : album_years_artist(no));
+    else
+        root_menu_ask_go_to_name(group_tag[g], pool + r->name);
+    return GO_TO_WPS;
 }
 
 /* Play on what one found plays it, as on a stock iPod: a song as Select, an

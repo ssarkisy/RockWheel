@@ -3558,6 +3558,11 @@ bool lp_playing_from_known(void)
     return playing_playlist(name, sizeof(name));
 }
 
+bool lp_playing_file(char *name, size_t size)
+{
+    return playing_playlist(name, size);
+}
+
 int lp_view_playing(void)
 {
     char name[MAX_PATH];

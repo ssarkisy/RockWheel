@@ -1520,26 +1520,13 @@ static bool catalog_folder_menu(const char *path, const char *name)
 #endif
 
 #ifdef HAVE_TAGCACHE
-/* Cover Flow from Music's own row, at the album of the song at if not NULL,
-   back to Music when it's left. Its Go to Artist goes to the artist's albums
-   here, in place, Menu there back to Cover Flow at that album. 0 to stay in
-   the lists, which are then loaded again, or else the screen to go to; buf
-   (MAX_PATH) is used for the song */
-static int tree_cover_flow(const char *at, char *buf)
+/* Cover Flow from Music's own row: the history's entry over the lists, which
+   leave for it as for Now Playing (root_menu_leave_asked()), Menu there back
+   to them */
+static int tree_cover_flow(void)
 {
-    switch (root_menu_cover_flow(at, buf))
-    {
-        case PLUGIN_GOTO_WPS:
-            return GO_TO_WPS;
-        case PLUGIN_GOTO_ROOT:
-            return GO_TO_ROOT;
-        case PLUGIN_GOTO_PLUGIN:
-            return GO_TO_PLUGIN;
-    }
-    if (buf[0] && tagtree_browse_from_cover_flow(buf))
-        transition_begin(TRANSITION_FORWARD);
-    reload_dir = true; /* it had the screen */
-    return 0;
+    root_menu_ask_cover_flow();
+    return GO_TO_WPS;
 }
 #endif
 
@@ -1847,11 +1834,7 @@ static int dirbrowse(void)
                 {
                     /* PictureFlow, back to this list when it is left */
                     if (button == ACTION_STD_OK)
-                    {
-                        const int screen = tree_cover_flow(NULL, buf);
-                        if (screen)
-                            return exit_to_new_screen(screen);
-                    }
+                        return exit_to_new_screen(tree_cover_flow());
                     button = ACTION_NONE;
                 }
             }
@@ -2004,27 +1987,9 @@ static int dirbrowse(void)
             case ACTION_STD_CANCEL:
                 exit_to_new_screen(0);
 #ifdef HAVE_TAGCACHE
-                /* opened by Go to in a row's menu: back to that row, or to
-                   Cover Flow at its album. Before the go-to's below, whose
-                   lists it may be in, at the same level: Menu leaves them
-                   next */
-                if (*tc.dirfilter == SHOW_ID3DB && tc.dirlevel == tagtree_browse_level())
-                {
-                    transition_begin(TRANSITION_BACK);
-                    if (tagtree_end_browse(&tc.dirlevel, &tc.selected_item, buf,
-                                           sizeof(buf)))
-                    {
-                        const int screen = tree_cover_flow(buf, buf);
-                        if (screen)
-                            return exit_to_new_screen(screen);
-                    }
-                    reload_dir = true;
-                    break;
-                }
-                /* opened at the track playing, from the menu over Now Playing;
-                   not while a list opened in place is gone through, which may
-                   be at a level above it, as from Playing From at an album */
-                if (*tc.dirfilter == SHOW_ID3DB && tagtree_browse_level() < 0
+                /* the go-to's level, of lists a Go to opened: back to the
+                   screen under them in the history */
+                if (*tc.dirfilter == SHOW_ID3DB
                     && tc.dirlevel == tagtree_go_to_level())
                 {
                     transition_begin(TRANSITION_BACK);

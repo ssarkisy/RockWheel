@@ -1353,11 +1353,11 @@ long gui_wps_show(void)
                     gwps_leave_wps(theme_enabled);
                     onplay(state->id3->path,
                            FILE_ATTR_AUDIO, CONTEXT_WPS, hotkey, ONPLAY_NO_CUSTOMACTION);
-                    /* back to the screen under it, which the hotkey opened again */
-                    if (root_menu_wps_leave_asked())
+                    /* the screen the hotkey asked for, Cover Flow, which the
+                       root loop opens over Now Playing as it is left */
+                    if (root_menu_leave_asked())
                     {
                         gwps_leave_wps(true);
-                        transition_begin(TRANSITION_BACK);
                         return GO_TO_PREVIOUS;
                     }
                     if (!audio_status())
@@ -1385,13 +1385,10 @@ long gui_wps_show(void)
                 gwps_leave_wps(true);
                 int retval = onplay(state->id3->path,
                        FILE_ATTR_AUDIO, CONTEXT_WPS, hotkey, ONPLAY_NO_CUSTOMACTION);
-                /* the screen it would open is the one under Now Playing: back
-                   to it, as Menu goes (root_menu_wps_leave_asked()) */
-                if (root_menu_wps_leave_asked())
-                {
-                    transition_begin(TRANSITION_BACK);
+                /* a screen the menu asked for, which the root loop opens over
+                   Now Playing as it is left (root_menu_leave_asked()) */
+                if (root_menu_leave_asked())
                     return GO_TO_PREVIOUS;
-                }
                 /* if music is stopped in the context menu we want to exit the wps */
                 if (retval == ONPLAY_MAINMENU
                     || !audio_status())

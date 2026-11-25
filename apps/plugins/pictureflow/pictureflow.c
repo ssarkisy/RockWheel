@@ -6501,29 +6501,86 @@ static int context_menu(void)
 static bool play_whole_album;
 
 #ifdef ITUNESDB_HAVE_ART
-/* Opened again from Now Playing's Menu as it was left for it from an album's
+/* Opened again from the history by Menu, as it was left from an album's
    tracks (ITUNESDB_COVER_FLOW_BACK, back_to_tracks): those tracks shown at
    once, as Select and Select again show them, at the track playing, once the
    covers in view are loaded (view_slides_loaded()). No frame is shown before
-   them: Now Playing stays on the screen meanwhile, as Cover Flow loads */
+   them: the screen before, as Now Playing, stays meanwhile, as Cover Flow
+   loads */
 static bool open_tracks_at_start;
+
+/* the track there as it was left, from the history (back_sel), unless the
+   album's own is playing: that one */
+static int back_sel = -1;
 
 static void select_playing_track(void)
 {
     const struct mp3entry *id3 = rb->audio_current_track();
+    int sel = back_sel < pf_tracks.count ? back_sel : -1;
     for (int i = 0; id3 && i < pf_tracks.count; i++)
     {
         const char *file = get_track_filename(i);
         if (file && !rb->strcmp(file, id3->path))
         {
-            pf_tracks.sel = i;
-            /* in view, as the wheel would have brought it there */
-            pf_tracks.list_start = MAX(0, MIN(i - pf_tracks.list_visible + 1,
-                                              pf_tracks.count
-                                              - pf_tracks.list_visible));
-            return;
+            sel = i;
+            break;
         }
     }
+    if (sel < 0)
+        return;
+    pf_tracks.sel = sel;
+    /* in view, as the wheel would have brought it there */
+    pf_tracks.list_start = MAX(0, MIN(sel - pf_tracks.list_visible + 1,
+                                      pf_tracks.count - pf_tracks.list_visible));
+}
+
+/* Its state for the history as it quits, which it is opened with again
+   (root_menu.h): its album, by the hashes of its name and artist, whether
+   its tracks show and the one selected, after ITUNESDB_COVER_FLOW_BACK */
+static void state_left(void)
+{
+    char state[64];
+    const int idx = pf_state == pf_scrolling ? target : center_index;
+    const bool tracks = pf_state == pf_show_tracks && !show_tracks_while_browsing;
+    rb->snprintf(state, sizeof(state), "%s:%x:%x:%d:%d", ITUNESDB_COVER_FLOW_BACK,
+                 mfnv(get_album_name(idx)), mfnv(get_album_artist(idx)),
+                 tracks ? 1 : 0, tracks ? pf_tracks.sel : 0);
+    rb->root_menu_cover_flow_left(state);
+}
+
+/* and read: false for ITUNESDB_COVER_FLOW_BACK alone, or another */
+static bool state_read(const char *state, unsigned int *album,
+                       unsigned int *artist, bool *tracks, int *sel)
+{
+    const size_t len = sizeof(ITUNESDB_COVER_FLOW_BACK) - 1;
+    if (rb->strncmp(state, ITUNESDB_COVER_FLOW_BACK, len) || state[len] != ':')
+        return false;
+    char *p = (char *)state + len + 1;
+    *album = rb->strtoul(p, &p, 16);
+    if (*p++ != ':')
+        return false;
+    *artist = rb->strtoul(p, &p, 16);
+    if (*p++ != ':')
+        return false;
+    *tracks = rb->strtoul(p, &p, 10) != 0;
+    if (*p++ != ':')
+        return false;
+    *sel = rb->strtoul(p, &p, 10);
+    return true;
+}
+
+/* the album by those hashes, its slide the center one; false if it's none */
+static bool select_album(unsigned int album, unsigned int artist)
+{
+    for (int i = 0; i < pf_idx.album_ct; i++)
+    {
+        if (mfnv(get_album_name(i)) == album && mfnv(get_album_artist(i)) == artist)
+        {
+            set_current_slide(i);
+            return true;
+        }
+    }
+    return false;
 }
 #endif
 
@@ -9225,9 +9282,16 @@ enum plugin_status plugin_start(const void *parameter)
     bool file_id3 = (parameter && (((char *) parameter)[0] == '/'));
 #ifdef ITUNESDB_HAVE_ART
     bool paused_music = false;
-    /* opened again from Now Playing's Menu: as it was left, the music as it
-       is (ITUNESDB_COVER_FLOW_BACK) */
-    const bool back = parameter && !rb->strcmp(parameter, ITUNESDB_COVER_FLOW_BACK);
+    /* opened again from the history, by Menu: as it was left, the music as
+       it is (ITUNESDB_COVER_FLOW_BACK, its state after it, state_left()) */
+    const bool back = parameter
+        && !rb->strncmp(parameter, ITUNESDB_COVER_FLOW_BACK,
+                        sizeof(ITUNESDB_COVER_FLOW_BACK) - 1);
+    unsigned int back_album = 0, back_artist = 0;
+    bool back_tracks = false;
+    const bool back_state = back && state_read(parameter, &back_album,
+                                               &back_artist, &back_tracks,
+                                               &back_sel);
 
     if (parameter && !rb->strcmp(parameter, ITUNESDB_ALBUM_LIST))
     {
@@ -9246,6 +9310,10 @@ enum plugin_status plugin_start(const void *parameter)
     if (init())
     {
         set_initial_slide(file_id3 ? file : NULL); /* may call splash */
+#ifdef ITUNESDB_HAVE_ART
+        if (back_state && !select_album(back_album, back_artist))
+            back_sel = -1;
+#endif
 #ifdef USEGSLIB
         grey_show(true);
 #endif
@@ -9259,7 +9327,8 @@ enum plugin_status plugin_start(const void *parameter)
             rb->audio_pause();
             paused_music = true;
         }
-        open_tracks_at_start = back && pf_cfg.back_to_tracks
+        open_tracks_at_start = back
+                               && (back_state ? back_tracks : pf_cfg.back_to_tracks)
                                && rb->audio_status();
 #endif
         ret = pictureflow_main();
@@ -9282,6 +9351,9 @@ enum plugin_status plugin_start(const void *parameter)
         pf_cfg.back_to_tracks = ret == PLUGIN_GOTO_WPS
                                 && pf_state == pf_show_tracks
                                 && !show_tracks_while_browsing;
+#ifdef ITUNESDB_HAVE_ART
+        state_left();
+#endif
 
         if (configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS,
                             CONFIG_VERSION))

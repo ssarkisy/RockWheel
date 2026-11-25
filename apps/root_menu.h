@@ -32,48 +32,36 @@
 #define HAVE_PHOTOS_MENU
 #endif
 
-/* Cover Flow, by plugin_load, which knows if it starts the music: at the album
-   of the song at, if not NULL. Its Go to Artist leaves it for that song's album
-   artist's albums, Menu there back to Cover Flow at that album: in lists of
-   their own, or, given go_to (MAX_PATH), from Music's lists it was opened in,
-   which go there in place, the song in go_to, "" for none. The plugin's answer,
-   PLUGIN_OK to go back */
-int root_menu_cover_flow(const char *at, char *go_to);
-/* A menu over Now Playing asked for Now Playing to go back to the screen under
-   it, as Menu does (root_menu_back_to_cover_flow(), and a go-to that found the
-   list under it): true once, as Now Playing asks after the menu */
-bool root_menu_wps_leave_asked(void);
+/* A screen asked for from within another (a menu of Now Playing's, a song's,
+   Cover Flow's): the root loop opens it over that one, as an entry of the
+   history of its own, once that one has left, as it leaves for Now Playing.
+   Whether one is asked for: the screen asking leaves then. Cover Flow at the
+   album playing, Up Next, a playlist's screen by its file, and the Music lists
+   at the song playing, where it was started (Playing From), at a song by its
+   file or its database index, at an artist (tag_virt_canonicalartist, by name)
+   or at an album's songs (tag_album), by name and its album artist's seek (-1:
+   by name alone), as Albums has the albums of a name apart */
+bool root_menu_leave_asked(void);
+void root_menu_ask_cover_flow(void);
+void root_menu_ask_up_next(void);
+void root_menu_ask_playlist(const char *file);
+void root_menu_ask_go_to_playing(bool artist);
+void root_menu_ask_playing_from(void);
+void root_menu_ask_go_to_track(const char *path, bool artist);
+void root_menu_ask_go_to_song(int idx, bool artist);
+void root_menu_ask_go_to_name(int tag, const char *name);
+void root_menu_ask_go_to_album(const char *name, int32_t artist);
 /* Cover Flow's Go to Artist, the song's file, as it quits: false if it isn't
-   offered, as Cover Flow isn't open by root_menu_cover_flow(); with NULL, that
-   alone */
+   offered, as Cover Flow isn't open as the root loop's screen; with NULL, that
+   alone. And Cover Flow's state as it quits, which it is opened with again
+   from the history (the plugin's own words) */
 bool root_menu_go_to_later(const char *path);
+void root_menu_cover_flow_left(const char *state);
 #ifdef HAVE_TAGCACHE
-/* what the go-to's below give back for nothing to open: apart from every
-   screen, GO_TO_ROOT (held Menu in the lists) among them */
-#define GO_TO_NOT_FOUND (-100)
-/* The Music lists at the song playing, or at a song by its file, from the menus
-   over Now Playing, of Search's songs, a playlist's and Cover Flow: Menu there
-   goes back, and the place in the lists stays as it was, unless music was
-   started from them. 0 for going back, or else the screen to go to; for a
-   song by its file, GO_TO_NOT_FOUND if it isn't found */
-int root_menu_go_to_playing(bool artist);
-int root_menu_go_to_track(const char *path, bool artist);
-/* the same where the music playing was started, Now Playing's Playing From */
-int root_menu_playing_from(void);
-/* The list an artist or an album opens, from Search: GO_TO_NOT_FOUND if it
-   isn't there, 0 for going back, or else the screen to go to */
-int root_menu_go_to_name(int tag, const char *name);
-/* and an album's, by its album artist's seek too, as Albums has the albums
-   of a name apart; by its name alone with -1 */
-int root_menu_go_to_album(const char *name, int32_t artist);
 /* Play on an album (tag_album) or an artist Search found: its songs played as
    from its row in Albums or Artists, the lists left as they were. True if
    the music plays */
 bool root_menu_play_found(int tag, const char *name, int32_t artist);
-/* Now Playing opened from Cover Flow, which a menu over it asks for again
-   (Select with Play): Now Playing to go back to that one, as Menu does, so
-   that it appears once (the owner's loop rule, 2026-11-24). True if so */
-bool root_menu_back_to_cover_flow(void);
 /* Settings > Music Menu > Group by Album Artist's callback: the lists of
    artists change, and where the lists were left in them with them */
 void root_menu_artists_grouping_changed(bool on);

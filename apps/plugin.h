@@ -193,7 +193,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. So is the database's
  * count of tags: a tag added moves the numbers of the virtual ones after it. */
-#define PLUGIN_API_REVISION 92
+#define PLUGIN_API_REVISION 93
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
@@ -1235,6 +1235,11 @@ struct plugin_api {
     /* a plugin's long step that reads no button, going on: as a wait for one,
        for the hang catcher (hang.h) */
     void (*hang_ui_alive)(void);
+#ifdef HAVE_TAGCACHE
+    /* Cover Flow's state as it quits, which the history opens it with again
+       (root_menu.h) */
+    void (*root_menu_cover_flow_left)(const char *state);
+#endif
 };
 
 /* plugin header */
@@ -1277,9 +1282,9 @@ int plugin_load(const char* plugin, const void* parameter);
 /* while a plugin's code runs, its menus too */
 bool plugin_is_running(void);
 /* the next plugin_load() leaves the screen as it is until the plugin draws its
-   own, as over Now Playing: for one opened at once after the screen left, Now
-   Playing or the go-to's lists it went back to, which is still on the screen,
-   the screen drawn since not shown (root_menu.c's cover_flow_again()) */
+   own, as over Now Playing: for one opened at once after Now Playing, which is
+   still on the screen, the screen drawn since not shown (root_menu.c's
+   cover_flow_screen()) */
 void plugin_load_keep_screen(void);
 
 /* defined by the plugin */

@@ -172,5 +172,8 @@ bool lp_rows_loaded(void);
    -1 if not. Up Next is the queue's own screen (playlist_viewer.c). */
 bool lp_playing_from_known(void);
 int lp_view_playing(void);
+/* the file of the playlist the music is from, as that opens it: false for
+   none */
+bool lp_playing_file(char *name, size_t size);
 
 #endif /* _LIBRARY_PLAYLISTS_H_ */

@@ -147,41 +147,15 @@ static bool clipboard_clip(struct clipboard *clip, const char *path,
 }
 
 /* CONTEXT_WPS playlist options */
-/* A screen of songs over this menu, the queue's or a playlist's: Menu there
-   comes back to this menu; a song chosen, or Play, goes to it */
-static int wps_view_songs(int (*view)(void))
-{
-    /* a song's menu opened in it chose that song: this menu's is the track
-       playing again, as Add to On-The-Go here goes by it */
-    static struct selected_file saved_file;
-    saved_file = selected_file;
-    const int saved_result = onplay_result;
-    menu_now_playing_away(true);
-    const int ret = view();
-    menu_now_playing_away(false);
-    selected_file = saved_file;
-    onplay_result = saved_result;
-    switch (ret)
-    {
-        case PLAYLIST_VIEWER_CANCEL:
-            return 0;
-        case PLAYLIST_VIEWER_MAINMENU:
-            return GO_TO_ROOT;
-        default:
-            return GO_TO_WPS;
-    }
-}
-
-static int view_queue(void)
-{
-    return playlist_viewer_ex(NULL, NULL);
-}
-
 /* Up Next: the queue, the songs to come, as Apple's Music has it, always
-   (the owner's decision, 2026-11-09); where they're from is Playing From */
+   (the owner's decision, 2026-11-09); where they're from is Playing From. A
+   screen of the history's over Now Playing, which leaves for it (the owner's
+   decision, 2026-11-25): a song chosen there to Now Playing over it, Menu
+   there back to it */
 static int wps_view_cur_playlist(void)
 {
-    return wps_view_songs(view_queue);
+    root_menu_ask_up_next();
+    return GO_TO_WPS;
 }
 
 #ifdef HAVE_ALBUMART
@@ -1348,26 +1322,12 @@ static int onplaymenu_callback(int action,
                                struct gui_synclist *this_list);
 
 #ifdef HAVE_TAGCACHE
-/* Cover Flow at the album playing: leaving it goes back to the WPS, not to
-   this menu. Now Playing opened from Cover Flow goes back to that one
-   instead, as Menu does, so that Cover Flow appears once (the owner's loop
-   rule, 2026-11-24) */
+/* Cover Flow at the album playing, a screen of the history's over Now
+   Playing, which leaves for it: Menu there back to Now Playing */
 static int open_cover_flow(void)
 {
-    if (root_menu_back_to_cover_flow())
-        return GO_TO_WPS;
-    menu_now_playing_away(true);
-    const int ret = root_menu_cover_flow(NULL, NULL);
-    menu_now_playing_away(false);
-    switch (ret)
-    {
-        case PLUGIN_GOTO_ROOT:
-            return GO_TO_ROOT;
-        case PLUGIN_GOTO_PLUGIN:
-            return GO_TO_PLUGIN;
-        default:
-            return GO_TO_WPS;
-    }
+    root_menu_ask_cover_flow();
+    return GO_TO_WPS;
 }
 MENUITEM_FUNCTION(cover_flow_item, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_COVER_FLOW),
                   open_cover_flow, NULL, Icon_NOICON);
@@ -1377,15 +1337,8 @@ MENUITEM_FUNCTION(cover_flow_item, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_COVER_FLOW)
    at as the menu over Now Playing would have it (gui_wps_show()) */
 static int hotkey_cover_flow(void)
 {
-    switch (open_cover_flow())
-    {
-        case GO_TO_ROOT:
-            return ONPLAY_MAINMENU;
-        case GO_TO_PLUGIN:
-            return ONPLAY_PLUGIN;
-        default:
-            return ONPLAY_OK;
-    }
+    open_cover_flow();
+    return ONPLAY_OK;
 }
 
 /* where the lists open from a menu over another screen */
@@ -1395,54 +1348,24 @@ enum {
     LISTS_AT_SONG,      /* the song of the menu, of Search or a playlist */
 };
 
-/* The Music lists opened from the menu over Now Playing, Search or a playlist.
-   Menu there comes back to that menu or screen, which goes on as it was,
-   whatever a menu opened in the lists has chosen. */
+/* The Music lists opened from the menu over Now Playing, Search or a playlist:
+   the history's entry over that screen, which leaves for them, Menu there back
+   to it as it was */
 static int go_to_lists(int at, bool artist)
 {
-    static struct selected_file saved_file;
-    bool (*saved_insert)(int, bool, bool) = ctx_current_playlist_insert;
-    int (*saved_add)(const char*, bool) = ctx_add_to_playlist;
-    char path[MAX_PATH];
-
-    saved_file = selected_file;
-    if (at == LISTS_AT_SONG)
-        strmemccpy(path, selected_file.path, sizeof(path));
-    /* the lists as they always are, beside the panel */
-    const bool wide = menu_wide();
-    menu_set_wide(false);
-    menu_now_playing_away(true);
-    int screen;
     switch (at)
     {
         case LISTS_AT_PLAYING:
-            screen = root_menu_go_to_playing(artist);
+            root_menu_ask_go_to_playing(artist);
             break;
         case LISTS_AT_FROM:
-            screen = root_menu_playing_from();
+            root_menu_ask_playing_from();
             break;
         default:
-            transition_begin(TRANSITION_FORWARD);
-            screen = root_menu_go_to_track(path, artist);
-            /* not found: nothing slides; held Menu and held Play in the
-               lists go on (onplay()'s ONPLAY_MAINMENU, ONPLAY_START_PLAY) */
-            if (screen == GO_TO_NOT_FOUND)
-            {
-                transition_cancel();
-                screen = 0;
-            }
+            root_menu_ask_go_to_track(selected_file.path, artist);
             break;
     }
-    menu_now_playing_away(false);
-    menu_set_wide(wide);
-    if (screen == 0)
-    {
-        selected_file = saved_file;
-        ctx_current_playlist_insert = saved_insert;
-        ctx_add_to_playlist = saved_add;
-        onplay_result = ONPLAY_OK;
-    }
-    return screen;
+    return GO_TO_WPS;
 }
 static int go_to_artist(void)
 {
@@ -1490,9 +1413,14 @@ MENUITEM_FUNCTION(go_to_album_item,
    Next is there anyway (the owner's decision, 2026-11-09) */
 static int playing_from(void)
 {
+    char name[MAX_PATH];
     if (tagtree_playing_from_known())
         return go_to_lists(LISTS_AT_FROM, false);
-    return wps_view_songs(lp_view_playing);
+    if (lp_playing_file(name, sizeof(name)))
+        root_menu_ask_playlist(name);
+    else
+        root_menu_ask_up_next();
+    return GO_TO_WPS;
 }
 static int playing_from_callback(int action, const struct menu_item_ex *this_item,
                                  struct gui_synclist *this_list)
@@ -1509,19 +1437,16 @@ MENUITEM_FUNCTION(playing_from_item,
                   Icon_NOICON);
 
 /* Go to Artist and Go to Album on a song of a list, as over Now Playing for
-   the song playing, and Go to Artist on an album: in Music's lists in place,
-   Menu there back to the row; from Search, a playlist and Current Playlist in
-   lists of their own, Menu back to that screen. After Play Last, before a
+   the song playing, and Go to Artist on an album: lists of their own, the
+   history's entry over the list, Search or the playlist, Menu there back to it
+   at that row (the owner's decision, 2026-11-25). After Play Last, before a
    playlist's Remove (the owner's decision, 2026-11-09). */
 static int song_go_to(bool artist)
 {
     if (selected_file.context == CONTEXT_ID3DB)
     {
-        /* loaded again even if it wasn't found: others were searched */
-        if (tagtree_browse_from_row(artist))
-            transition_begin(TRANSITION_FORWARD);
-        onplay_result = ONPLAY_RELOAD_DIR;
-        return 0;
+        root_menu_ask_go_to_song(tagtree_row_song(), artist);
+        return GO_TO_WPS;
     }
     return go_to_lists(LISTS_AT_SONG, artist);
 }
