@@ -4580,9 +4580,8 @@ static int NO_INLINE make_list_entries(struct tree_context *c, int offset,
                               namebufused);
         songs_whole = keys != NULL;
         if (songs_whole)
-            entries_sort = LIST_SORT_SONGS;
-        else
         {
+            entries_sort = LIST_SORT_SONGS;
             /* all found: a press or a held event that stops the search
                returns before this */
             if (songs_orders_with_list)
