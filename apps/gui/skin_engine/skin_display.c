@@ -1620,7 +1620,10 @@ static void draw_cover_tinted_image(struct screen *display, const struct gui_img
    gradient is the backdrop's own. A limit: where the pane changes from row
    to row, or the row under (over) the picture isn't its plain ground, or
    the picture is as tall as the screen, a wall at its left is repeated
-   across. None of the four themes is such a one. */
+   across. None of the four themes is such a one. The list's shadow over
+   the pane (menu_cover_pane_shadow_width()) is such a wall, in the
+   backdrop's rows: its columns are the backdrop's own, with nothing else
+   there, and the 16 repeated are those just right of it. */
 static void draw_photos_panel_ground(struct screen *display,
                                      const struct gui_img *img)
 {
@@ -1632,6 +1635,10 @@ static void draw_photos_panel_ground(struct screen *display,
     if (!backdrop || display->screen_type != SCREEN_MAIN || left < 0
         || width <= 0 || height <= 0)
         return;
+    /* the shadow's columns at the picture's left, if 16 are left after them */
+    int wall = ui_metric(UI_METRIC_PANE_LEFT) + menu_cover_pane_shadow_width() - left;
+    if (wall < 0 || wall + 16 > width)
+        wall = 0;
     const int plain_y = top + height < LCD_HEIGHT ? top + height : top - 1;
     const fb_data *plain = plain_y >= 0 && plain_y < LCD_HEIGHT
                            ? backdrop + plain_y * LCD_WIDTH + left : NULL;
@@ -1652,7 +1659,7 @@ static void draw_photos_panel_ground(struct screen *display,
             continue;
         }
         for (int x = 0; x < width; x++)
-            line[x] = edge[x & 15];
+            line[x] = x < wall ? edge[x] : edge[wall + ((x - wall) & 15)];
         display->bitmap_part(line, 0, 0, width, img->x, img->y + row, width, 1);
     }
 }
@@ -1714,6 +1721,16 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
         keep_own_colours = false;
         accent_image = false;
     }
+#if defined(HAVE_MENU_COVER) && LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+    /* the list's shadow over the collage, as often as it is drawn: by a
+       redraw of its viewport alone too, as the status line's changes give */
+    if (img->photos_panel && display->screen_type == SCREEN_MAIN)
+    {
+        const struct viewport *cur = *display->current_viewport;
+        menu_cover_pane_shadow_over(cur->x + img->x, cur->y + img->y,
+                                    cur->y + img->y + img->subimage_height);
+    }
+#endif
 }
 
 #ifdef HAVE_ALBUMART

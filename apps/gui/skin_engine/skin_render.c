@@ -1127,16 +1127,6 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
         if (viewport->children_count)
             skin_render_viewport(get_child(viewport->children, 0), gwps,
                                  skin_viewport, vp_refresh_mode);
-        /* the list's shadow over what a viewport of the main menu's pane
-           draws on a backdrop that has it, as Classic's collage of photos
-           (menu_cover.h); a theme without one has it in its skin's images */
-        if ((vp_refresh_mode & SKIN_REFRESH_ALL) == SKIN_REFRESH_ALL
-            && skin_viewport->label != VP_DEFAULT_LABEL)
-        {
-            const char *vplabel = SKINOFFSETTOPTR(skin_buffer, skin_viewport->label);
-            if (vplabel && !strcmp(vplabel, "collage"))
-                menu_cover_pane_shadow_drawn(&skin_viewport->vp);
-        }
         if (volume_only)
         {
             const struct viewport *vp = &skin_viewport->vp;

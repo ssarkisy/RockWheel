@@ -108,11 +108,13 @@ void menu_cover_shade(int x0, int y0, int y1);
 /* The list's shadow over the pane (UI_METRIC_PANE_SHADOW), where the pane's
    pictures can't have it: over what is drawn on the screen's rows y0 to y1
    of the pane from its column x0, as the cover, a frame of Moving Cover or
-   the caution over the note; and over a viewport of a theme with a backdrop,
-   as Classic's collage of photos, its pixels that aren't the backdrop's,
-   which has the shadow already */
+   the caution over the note; and, each time it is drawn, over Photos'
+   collage on a theme's backdrop, as Classic's, its pixels that aren't the
+   backdrop's, which has the shadow already (_over()). Its width: the
+   columns from the pane's left it darkens, 0 for none */
 void menu_cover_pane_shadow(int x0, int y0, int y1);
-void menu_cover_pane_shadow_drawn(const struct viewport *vp);
+void menu_cover_pane_shadow_over(int x0, int y0, int y1);
+int menu_cover_pane_shadow_width(void);
 /* the glass over the cover shown in the pane (UI_METRIC_COVER_GLASS), over
    the part of it the screen shows, which stays as the cover moves under it */
 void menu_cover_glass(void);
@@ -153,7 +155,11 @@ static inline void menu_cover_pane_shadow(int x0, int y0, int y1)
 {
     (void)x0; (void)y0; (void)y1;
 }
-static inline void menu_cover_pane_shadow_drawn(const struct viewport *vp) { (void)vp; }
+static inline void menu_cover_pane_shadow_over(int x0, int y0, int y1)
+{
+    (void)x0; (void)y0; (void)y1;
+}
+static inline int menu_cover_pane_shadow_width(void) { return 0; }
 #endif
 
 #endif /* _MENU_COVER_H_ */

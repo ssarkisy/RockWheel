@@ -913,6 +913,17 @@ static const unsigned char pane_shadow[] = {
     119, 107, 99, 89, 80, 75, 68, 62, 54, 47, 40, 34, 28, 23, 18, 13, 11, 8, 6, 4
 };
 
+int menu_cover_pane_shadow_width(void)
+{
+    const int strength = ui_metric(UI_METRIC_PANE_SHADOW);
+    if (strength <= 0 || ui_metric(UI_METRIC_PANE_LEFT) <= 0)
+        return 0;
+    int i = 0;
+    while (i < (int)ARRAYLEN(pane_shadow) && pane_shadow[i] * strength / 100 >= 3)
+        i++;
+    return i;
+}
+
 static void pane_shadow_rows(int x0, int y0, int y1, bool over_backdrop)
 {
     const int strength = ui_metric(UI_METRIC_PANE_SHADOW);
@@ -956,9 +967,9 @@ void menu_cover_pane_shadow(int x0, int y0, int y1)
     pane_shadow_rows(x0, y0, y1, false);
 }
 
-void menu_cover_pane_shadow_drawn(const struct viewport *vp)
+void menu_cover_pane_shadow_over(int x0, int y0, int y1)
 {
-    pane_shadow_rows(vp->x, vp->y, vp->y + vp->height, true);
+    pane_shadow_rows(x0, y0, y1, true);
 }
 
 void menu_cover_shade(int x0, int y0, int y1)
