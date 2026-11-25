@@ -502,7 +502,9 @@ static const char graphic_numeric[] = "graphic,numeric";
 #ifdef SIMULATOR
 #define DEFAULT_BACKLIGHT_TIMEOUT 0
 #else
-#define DEFAULT_BACKLIGHT_TIMEOUT 15
+/* the stock iPod's Backlight Timer, on battery and, with no row of its own,
+   on power too (backlight_timeout_plugged) */
+#define DEFAULT_BACKLIGHT_TIMEOUT 10
 #endif
 #endif /* HAVE_BACKLIGHT */
 
@@ -1865,13 +1867,15 @@ const struct settings_list settings[] = {
     OFFON_SETTING(0, angled_cover, LANG_ANGLED_COVER, false, "angled cover", NULL),
 #endif
     /* a song's stars and its format on Now Playing: the themes' skins ask
-       for these by name, so every build has them */
-    CHOICE_SETTING(0, np_rating, LANG_NP_RATING, 0, "now playing rating",
+       for these by name, so every build has them. Stars only once the song
+       is rated, as on a stock iPod */
+    CHOICE_SETTING(0, np_rating, LANG_NP_RATING, 1, "now playing rating",
                    "always,rated,never", NULL, 3, ID2P(LANG_ALWAYS),
                    ID2P(LANG_NP_RATING_RATED), ID2P(LANG_NEVER)),
     OFFON_SETTING(0, np_format, LANG_NP_FORMAT, false, "now playing format", NULL),
-    /* and the level under the volume bar as the volume changes (%nv) */
-    OFFON_SETTING(0, volume_number, LANG_VOLUME_NUMBER, true,
+    /* and the level under the volume bar as the volume changes (%nv); off,
+       the bar alone, as on a stock iPod */
+    OFFON_SETTING(0, volume_number, LANG_VOLUME_NUMBER, false,
                   "now playing volume number", NULL),
     /* backlight fading */
 #if defined(HAVE_BACKLIGHT_FADING_INT_SETTING)
