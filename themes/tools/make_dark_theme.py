@@ -7,12 +7,15 @@
 # BMPs of 24 bits are worked on by the Python standard library, and of 32 their colours,
 # their alpha kept. Scrub Knob.bmp reads well on both, so it's copied. The same for the
 # iPod photo's 220x176 theme (themes/iClassic-Square/220x176, PHOTO below), whose light
-# one make_classic_220x176.py makes.
+# one make_classic_220x176.py makes; its Now Playing modes are drawn in the dark one's
+# colours by make_classic_modes.py.
 
 import os
 import re
 import shutil
 import struct
+
+import make_classic_modes as modes
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -50,7 +53,8 @@ VIDEO = screen(os.path.join(HERE, "..", "iClassic-Square", ".rockbox"),
                GROUND_GLYPHS=("Stars", "Ratings", "Signal", "Volume Left", "Volume Right",
                               "Art Mask", "Scrub Hints", "Repeat Icon", "Shuffle Icon",
                               "Status Shuffle Albums"),
-               COPIED=("Scrub Knob", "Disk Fill", "Photos Icon"))
+               COPIED=("Scrub Knob", "Disk Fill", "Photos Icon"),
+               DRAWN_MODES=False)
 PHOTO = screen(os.path.join(HERE, "..", "iClassic-Square", "220x176", ".rockbox"),
                HEADER_HEIGHT=15,    # make_classic_header.py's PHOTO_ROWS
                BAR_X=40, BAR_Y=143, BAR_W=140, ART=(9, 31, 105, 127),
@@ -61,9 +65,11 @@ PHOTO = screen(os.path.join(HERE, "..", "iClassic-Square", "220x176", ".rockbox"
                PANEL_X=110,  # the main menu's pane
                HEADER_GLYPHS=(),
                GROUND_GLYPHS=("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask",
-                              "Scrub Hints", "Repeat Icon", "Shuffle Icon",
-                              "Status Shuffle Albums"),
-               COPIED=("Scrub Knob", "Disk Fill", "Photos Icon"))
+                              "Scrub Hints"),
+               COPIED=("Scrub Knob", "Disk Fill", "Photos Icon"),
+               # Now Playing's modes drawn in the dark colours: glyph_pixel()'s mix
+               # by luma would thin their smoothed edges
+               DRAWN_MODES=True)
 
 
 def use(layout):
@@ -264,6 +270,8 @@ def main():
                        glyph_pixel)
         for name in COPIED:
             shutil.copy(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"))
+        if DRAWN_MODES:
+            modes.write(DARK, modes.DARK_COLOURS)
 
 
 if __name__ == "__main__":

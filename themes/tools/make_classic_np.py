@@ -75,6 +75,8 @@ VIDEO = dict(
     # rows under the dark line of the bar of 24 (make_classic_header.py)
     BATTERY_RIGHT=315,
     MODES_Y=25,
+    MODE_W=19, MODE_H=20, MODE_GAP=4,
+    MODES_FOOT=21,          # the details' top, from the modes': a row under them
 )
 # The iPod photo's 220x176: the cover 96 px, the column beside it in its
 # fonts, 17 px for the title and 14 for the rest, on a pitch of 14, so that
@@ -105,10 +107,12 @@ PHOTO = dict(
     # the battery's viewport at 191; two rows under the bar's line of 16
     BATTERY_RIGHT=215,
     MODES_Y=17,
+    # make_classic_modes.py's, 85 % of the Video's; the details' top where the
+    # Video's size had it, not moved with these
+    MODE_W=16, MODE_H=17, MODE_GAP=3,
+    MODES_FOOT=21,
 )
 STARS_ROWS = 13  # the small stars' row; their width is the Ratings picture's
-MODE_W, MODE_H = 19, 20
-MODE_GAP = 4
 
 
 def use(layout):
@@ -139,7 +143,7 @@ def block(lines):
     first = out[0][1] + ink(out[0][0])[0]
     last = out[-1][1] + ink(out[-1][0])[1]
     shift = max(COVER_Y + COVER // 2 - (first + last + 1) // 2,
-                MODES_Y + MODE_H + 1 - out[0][1])
+                MODES_Y + MODES_FOOT - out[0][1])
     for line in out:
         line[1] += shift
     # none taller than to the next one's top, which it would clear
@@ -210,10 +214,11 @@ def modes():
     # %mm: off, all, one, shuffle, A-B
     repeat = "%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)"
     right = BATTERY_RIGHT - MODE_W + 1
+    albums_w, albums_h = picture_size("Status Shuffle Albums.bmp")
     return [
         "%xl(r,Repeat Icon.bmp,0,0,4)",
         "%xl(S,Shuffle Icon.bmp,0,0)",
-        "%%xl(A,Status Shuffle Albums.bmp,%d,%d)" % (MODE_W - 16, (MODE_H - 16) // 2),
+        "%%xl(A,Status Shuffle Albums.bmp,%d,%d)" % (MODE_W - albums_w, (MODE_H - albums_h) // 2),
         "%%Vl(mode1,%d,%d,%d,%d,-)" % (right, MODES_Y, MODE_W, MODE_H),
         "%%?mm<%s|%s>" % (shuffle, repeat),
         "%%Vl(mode2,%d,%d,%d,%d,-)" % (right - MODE_GAP - MODE_W, MODES_Y, MODE_W, MODE_H),
@@ -227,10 +232,16 @@ def shown(normal, rating, speed):
     return "%%?if(%%mw, <, 3)<%s|%%?mw<||%%?C<|%s>||%s|%s>>" % (normal, normal, rating, speed)
 
 
+def picture_size(name):
+    """a picture's width and height, of the light skin's"""
+    with open(os.path.join(os.path.dirname(WPS), "iClassic-Square", name), "rb") as f:
+        w, h = struct.unpack_from("<ii", f.read(26), 18)
+    return w, abs(h)
+
+
 def ratings_width():
     """the Ratings picture's width, for its mirror's place at the column's end"""
-    with open(os.path.join(os.path.dirname(WPS), "iClassic-Square", "Ratings.bmp"), "rb") as f:
-        return struct.unpack_from("<i", f.read(26), 18)[0]
+    return picture_size("Ratings.bmp")[0]
 
 
 def write():

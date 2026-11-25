@@ -209,10 +209,10 @@
 # repeat and shuffle under the status bar's right end, ending where the battery does
 %xl(r,Repeat Icon.bmp,0,0,4)
 %xl(S,Shuffle Icon.bmp,0,0)
-%xl(A,Status Shuffle Albums.bmp,3,2)
-%Vl(mode1,197,17,19,20,-)
+%xl(A,Status Shuffle Albums.bmp,0,0)
+%Vl(mode1,200,17,16,17,-)
 %?mm<%?ps<%?pa<%xd(A)|%xd(S)>|>|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>
-%Vl(mode2,174,17,19,20,-)
+%Vl(mode2,181,17,16,17,-)
 %?mm<|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>>
 # end: made by themes/tools/make_classic_np.py
 # The bar with its times, in the row's whole width: what is played in the middle of

@@ -8,10 +8,12 @@
 # Nothing is scaled. What is the same on both screens is taken as it is: the
 # status bar's rows, cut to the screen's width (its texture repeats every 20
 # px, so it goes on unbroken), three of its gradient's left out for a bar of
-# 16 rows over lists of eight rows of 20; the glyphs; the progress bar and its trough,
+# 16 rows over lists of eight rows of 20; the glyphs but Now Playing's modes; the
+# progress bar and its trough,
 # their two ends with the middle between them shortened. The note of a
 # missing cover is drawn anew at the cover's size here, by
-# make_menu_icons.py's drawing, its strokes on whole pixels. Then
+# make_menu_icons.py's drawing, its strokes on whole pixels, and Now
+# Playing's modes at 85 % of the Video's by make_classic_modes.py. Then
 # make_classic_np.py writes the details' part of the skin and
 # make_dark_theme.py the dark theme, as for 320x240. The skins themselves,
 # iClassic-Square.sbs and .wps, are edited by hand. The main menu has a pane
@@ -26,6 +28,7 @@ import os
 import shutil
 
 import make_classic_header as header_tool
+import make_classic_modes as modes
 import make_menu_icons as icons
 from make_menu_icons import mix, read_bmp, write_bmp
 
@@ -59,9 +62,9 @@ ABOUT_SRC_X = 160 + (160 - ABOUT_SRC_W) // 2
 DISK_FILL = (round(128 * ABOUT_SCALE), round(11 * ABOUT_SCALE))
 
 # the glyphs taken as they are; the status line's, on its own bar, are
-# make_classic_header.py's and make_night_icon.py's
-GLYPHS = ("Status Shuffle Albums", "Repeat Icon", "Shuffle Icon", "Ratings", "Stars",
-          "Scrub Knob", "Scrub Hints", "Volume Left", "Volume Right")
+# make_classic_header.py's and make_night_icon.py's, Now Playing's modes
+# make_classic_modes.py's
+GLYPHS = ("Ratings", "Stars", "Scrub Knob", "Scrub Hints", "Volume Left", "Volume Right")
 
 
 class Note(icons.Note):
@@ -236,6 +239,7 @@ def main():
     icons.write_patch(os.path.join(wps, "Photos Icon.bmp"), photos_icon(), PANE_NOTE)
     for name in GLYPHS:
         shutil.copy(os.path.join(LIGHT, name + ".bmp"), os.path.join(wps, name + ".bmp"))
+    modes.write(wps, modes.LIGHT_COLOURS)
 
 
 if __name__ == "__main__":
