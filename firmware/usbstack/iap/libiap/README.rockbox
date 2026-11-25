@@ -3,3 +3,26 @@ Files under this directory were imported from libiap(https://github.com/mojyack/
 - HEAD: libiap commit hash
 
 To sync with the upstream, use ../libiap-sync.sh script.
+
+Local changes
+-------------
+This copy is not identical to libiap at HEAD: Rockbox changes it for car
+head units (tested with a Volvo XC40), and these changes are not upstream
+yet:
+- identification: IDPS with deferred or no authentication, Identify and
+  IdentifyDeviceLingoes, unknown FID tokens accepted
+- General, Display Remote and Extended Interface queries head units send
+  (lingo options, UI mode, event notifications, EQ profiles, sound check,
+  localization, iTunes DB info, protocol version, artwork)
+- database access: select, reset, count and record streaming, with the
+  platform callbacks in platform.h
+- next/previous album and playlist controls
+- restore-on-exit for SetRepeat and SetShuffle
+- a request arriving while a response spanning several HID reports is
+  still being sent is answered after it (iap.c, hid.c)
+- swap_64() and unaligned stores fixed
+- RequestIPodName answers with the name in .rockbox/playername.txt
+
+libiap-sync.sh refuses to overwrite this directory while it differs from
+upstream at HEAD. To update libiap, port these changes onto the new
+upstream (or get them merged there), then sync with --force.
