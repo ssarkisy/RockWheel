@@ -689,8 +689,16 @@ static struct pf_slide_cache pf_sldcache;
 unsigned long thread_stack[THREAD_STACK_SIZE / sizeof(long)];
 /* queue (as array) for scheduling load_surface */
 
-static int empty_slide_hid;
+/* The slides covers share, the empty one (the note's) and the unshown one,
+   read on the slide thread with buf_ctx, between the covers' loads: before
+   the first cover, as the covers not loaded yet show the empty one, unless
+   the tracks open at once (frames_held()); then as a cover without one of
+   its own wants it, or once that's over. Read as Cover Flow started, the
+   two took 80 ms of its opening. -1 until read; the empty one 0 if it can't
+   be, drawn as nothing then. */
+static int empty_slide_hid = -1;
 static int unshown_slide_hid = -1; /* -1 without it: the note's then */
+static bool empty_slide_tried, unshown_slide_tried;
 
 unsigned int thread_id;
 struct event_queue thread_q;
@@ -3267,6 +3275,43 @@ static int create_empty_slide(bool force)
     return true;
 }
 
+/* empty_slide_hid read once, buf_ctx held; made again if it doesn't read, as
+   when power was cut as it was written: without it a slide with no cover was
+   loaded again and again. If that fails too, 0: the albums without a cover
+   are drawn as nothing, and the slides past them are still loaded */
+static void want_empty_slide(void)
+{
+    if (empty_slide_tried)
+        return;
+    empty_slide_tried = true;
+    /* -1 as it's read, which is what a failure to read it gives then */
+    empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0);
+    if (empty_slide_hid < 0 && create_empty_slide(true))
+        empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0);
+    if (empty_slide_hid < 0)
+        empty_slide_hid = 0;
+}
+
+#ifdef ITUNESDB_HAVE_ART
+/* and unshown_slide_hid */
+static void want_unshown_slide(void)
+{
+    if (unshown_slide_tried)
+        return;
+    unshown_slide_tried = true;
+    load_unshown_slide();
+}
+#endif
+
+/* both to be read again, into a slide buffer made anew */
+static void forget_shared_slides(void)
+{
+    empty_slide_hid = unshown_slide_hid = -1;
+    empty_slide_tried = unshown_slide_tried = false;
+}
+
+static inline bool frames_held(void);
+
 /**
  Thread used for loading and preparing bitmaps in the background
  */
@@ -3304,6 +3349,16 @@ static void thread(void)
             thread_loading = true;
             while ( rb->queue_empty(&thread_q) ) {
                 buf_ctx_lock();
+                /* before a cover's load, where reading them could free one
+                   of its neighbours */
+                if (!frames_held() && !wants_to_quit)
+                {
+                    want_empty_slide();
+#ifdef ITUNESDB_HAVE_ART
+                    if (rb->global_settings->cover_caution)
+                        want_unshown_slide();
+#endif
+                }
                 bool slide_loaded = load_new_slide();
                 buf_ctx_unlock();
                 if (!slide_loaded)
@@ -3508,7 +3563,8 @@ static inline void lla_insert_before(int *head, int i, int p)
 */
 static inline void free_slide(int i)
 {
-    if (pf_sldcache.cache[i].hid != empty_slide_hid
+    if (pf_sldcache.cache[i].hid > 0
+        && pf_sldcache.cache[i].hid != empty_slide_hid
         && pf_sldcache.cache[i].hid != unshown_slide_hid)
         rb->buflib_free(&buf_ctx, pf_sldcache.cache[i].hid);
     pf_sldcache.cache[i].index = -1;
@@ -3741,12 +3797,19 @@ static inline bool load_and_prepare_surface(const int slide_index,
         return false;
     /* one whose picture isn't shown: the "?" slide, if it's to say so */
     if (hid == COVER_UNSHOWN)
+    {
+        if (rb->global_settings->cover_caution)
+            want_unshown_slide();
         hid = rb->global_settings->cover_caution && unshown_slide_hid >= 0
               ? unshown_slide_hid : -1;
+    }
     /* none, the note's slide, as a missing .pfraw gave it: a slide not
        loaded is taken for no room, and the slides past it weren't loaded */
     if (hid < 0)
+    {
+        want_empty_slide();
         hid = empty_slide_hid;
+    }
 #else
     {
         char pfraw_file[MAX_PATH];
@@ -3920,7 +3983,7 @@ fatal_fail:
  */
 static inline struct dim *get_slide(const int hid)
 {
-    if (!hid)
+    if (hid <= 0) /* none, or a shared slide not read (yet) */
         return NULL;
 
     struct dim *bmp;
@@ -4589,14 +4652,7 @@ static bool sort_albums(int new_sorting, bool from_settings)
 
     /* Empty cache and restart cover loading thread */
     rb->buflib_init(&buf_ctx, (void *)pf_idx.buf, pf_idx.buf_sz);
-    /* -1 as it's read, which is what a failure to read it gives then; made
-       again if it doesn't read, as at the start: without it a slide with no
-       cover was loaded again and again */
-    empty_slide_hid = -1;
-    empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0);
-    if (empty_slide_hid < 0 && create_empty_slide(true))
-        empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0);
-    load_unshown_slide();
+    forget_shared_slides();
     initialize_slide_cache();
     is_initial_slide = true;
     create_pf_thread();
@@ -6991,16 +7047,7 @@ static bool init(void)
     if (pf_cfg.cache_version != CACHE_VERSION)
         config_save(CACHE_VERSION, pf_cfg.update_albumart);
 
-    /* made again if it doesn't read, as when power was cut as it was written */
-    empty_slide_hid = -1; /* what a failure to read it gives */
-    if ((empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0)) < 0
-        && (!create_empty_slide(true)
-            || (empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0)) < 0))
-    {
-        error_wait("Unable to load empty slide image");
-        return false;
-    }
-    load_unshown_slide();
+    forget_shared_slides(); /* read on the slide thread */
 
     if (!create_pf_thread())
     {
@@ -9381,6 +9428,12 @@ enum plugin_status plugin_start(const void *parameter)
     }
     atexit(cleanup);
 
+#ifdef ITUNESDB_HAVE_ART
+    /* as its state has it, before the slide thread starts, which reads the
+       empty slide later then (frames_held()); without its state, by the
+       config, once it's read */
+    open_tracks_at_start = back_state && back_tracks && rb->audio_status();
+#endif
     /* its albums are read only if it started: state_left() reads them */
     const bool started = init();
     if (started)
