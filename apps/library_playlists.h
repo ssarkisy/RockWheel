@@ -127,6 +127,9 @@ void lp_index_moved(const char *from, const char *to);
 void lp_source_moved(const char *from, const char *to);
 /* its screen: a playlist viewer's result */
 int lp_view(const char *file, int *selection);
+/* the same, opened again as it was left for Now Playing or the main menu: at
+   the song playing if the music is from it */
+int lp_view_back(const char *file, int *selection);
 /* its songs played from the first, as Select on that one there, or with
    Shuffle on from any, the screen not shown: Play on its row in Playlists.
    True if the music plays */

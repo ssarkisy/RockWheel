@@ -106,7 +106,11 @@ bool tagtree_browse_from_row(bool artist);
 bool tagtree_browse_from_cover_flow(const char *path);
 int tagtree_browse_level(void);
 bool tagtree_end_browse(int *dirlevel, int *selected_item, char *buf, size_t size);
-void tagtree_forget_browse(void);
+/* the lists left for another screen; keep for Now Playing, at dirlevel, so
+   that a list opened in place opens again as it was */
+void tagtree_forget_browse(bool keep, int dirlevel);
+/* and opened again by Now Playing's Menu, at dirlevel */
+void tagtree_resume_browse(int dirlevel);
 /* as that, at the albums of an artist (tag_virt_canonicalartist), of the songs or
    of the albums, by its row in Artists or else in a list of the other artists in
    its place; or at the songs of an album (tag_album), by name */
@@ -121,6 +125,10 @@ bool tagtree_has_section(int lang);
 bool tagtree_go_to_section(int lang, int *dirlevel, int *selected_item);
 /* the same at a place in it restored, from Now Playing to where music started */
 void tagtree_resume_section(int lang, int *dirlevel, int *selected_item);
+/* a go-to's lists left for Now Playing, kept if no music was started there,
+   and opened again as left, Menu leaving them again at its level */
+void tagtree_left_go_to(bool keep, int dirlevel, int selected_item);
+bool tagtree_resume_go_to(int level, int *dirlevel, int *selected_item);
 int tagtree_go_to_level(void);
 void tagtree_end_go_to(bool go_back, int *dirlevel, int *selected_item);
 int tagtree_enter(struct tree_context* c, bool is_visible);
@@ -157,6 +165,13 @@ bool tagtree_at_top(void);
 char *tagtree_get_title(struct tree_context* c);
 int tagtree_get_attr(struct tree_context* c);
 bool tagtree_row_is_playing(struct tree_context *c, int row, long playing);
+/* the row of the song playing, if this is the list the music is from, from
+   the row from on; -1 for none */
+int tagtree_playing_row(struct tree_context *c, int from);
+/* the lists a go-to has just opened are the list it was opened over, or with
+   kept the go-to's lists kept as left (tagtree_left_go_to()), or a level of
+   it above, down to floor, that place then moved up to it */
+bool tagtree_go_to_is_open(bool kept, int floor);
 /* Play on a row: whether it plays it, as on a stock iPod, rather than pausing;
    and the selected one played, 2 (to Now Playing) if the music plays */
 bool tagtree_row_plays(struct tree_context *c, int row);

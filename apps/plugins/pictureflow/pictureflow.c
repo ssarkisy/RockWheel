@@ -373,6 +373,9 @@ struct pf_config_t
      bool show_fps;
 
      bool update_albumart;
+     /* left for Now Playing from an album's tracks, which Menu there opens
+        again (ITUNESDB_COVER_FLOW_BACK) */
+     bool back_to_tracks;
 };
 
 struct pf_index_t {
@@ -595,7 +598,8 @@ static struct configdata config[] =
     { TYPE_ENUM, 0, 2, { .int_p = &pf_cfg.year_sort_order }, "year order",
       year_sort_order_conf },
     { TYPE_BOOL, 0, 1, { .bool_p = &pf_cfg.show_year }, "show year", NULL },
-    { TYPE_BOOL, 0, 1, { .bool_p = &pf_cfg.update_albumart }, "update albumart", NULL }
+    { TYPE_BOOL, 0, 1, { .bool_p = &pf_cfg.update_albumart }, "update albumart", NULL },
+    { TYPE_BOOL, 0, 1, { .bool_p = &pf_cfg.back_to_tracks }, "back to tracks", NULL }
 };
 
 #define CONFIG_NUM_ITEMS (sizeof(config) / sizeof(struct configdata))
@@ -1025,6 +1029,7 @@ static void config_set_defaults(struct pf_config_t *cfg)
      cfg->year_sort_order = ASCENDING;
      cfg->show_year = false;
      cfg->update_albumart = false;
+     cfg->back_to_tracks = false;
 }
 
 static inline PFreal fmul(PFreal a, PFreal b)
@@ -6473,6 +6478,31 @@ static int context_menu(void)
    Shuffle on, from any of its tracks, as on a stock iPod */
 static bool play_whole_album;
 
+#ifdef ITUNESDB_HAVE_ART
+/* Opened again from Now Playing's Menu as it was left for it from an album's
+   tracks (ITUNESDB_COVER_FLOW_BACK, back_to_tracks): those tracks shown at
+   once, as Select and Select again show them, at the track playing */
+static bool open_tracks_at_start;
+
+static void select_playing_track(void)
+{
+    const struct mp3entry *id3 = rb->audio_current_track();
+    for (int i = 0; id3 && i < pf_tracks.count; i++)
+    {
+        const char *file = get_track_filename(i);
+        if (file && !rb->strcmp(file, id3->path))
+        {
+            pf_tracks.sel = i;
+            /* in view, as the wheel would have brought it there */
+            pf_tracks.list_start = MAX(0, MIN(i - pf_tracks.list_visible + 1,
+                                              pf_tracks.count
+                                              - pf_tracks.list_visible));
+            return;
+        }
+    }
+}
+#endif
+
 /*
  * Puts selected album's tracks into a newly created playlist and starts playing
  */
@@ -7636,6 +7666,23 @@ static int pictureflow_main(void)
 #endif
             ,instant_update ? 0 : wheel_touched() ? 1 : HZ/16,
             get_context_map);
+#ifdef ITUNESDB_HAVE_ART
+        /* back from Now Playing to the tracks it was left from: Select's
+           steps from the cover, the second skipping the turn, then the track
+           playing selected; a press meanwhile goes first */
+        if (open_tracks_at_start && button == ACTION_NONE)
+        {
+            if (pf_state == pf_idle || pf_state == pf_cover_in)
+                button = PF_TRACKLIST;
+            else
+            {
+                if (pf_state == pf_show_tracks)
+                    select_playing_track();
+                idle_shown = false; /* drawn again with it */
+                open_tracks_at_start = false;
+            }
+        }
+#endif
         if (button != ACTION_NONE)
             idle_shown = false;
         if (button != ACTION_NONE && !IS_SYSEVENT(button))
@@ -9101,6 +9148,9 @@ enum plugin_status plugin_start(const void *parameter)
     bool file_id3 = (parameter && (((char *) parameter)[0] == '/'));
 #ifdef ITUNESDB_HAVE_ART
     bool paused_music = false;
+    /* opened again from Now Playing's Menu: as it was left, the music as it
+       is (ITUNESDB_COVER_FLOW_BACK) */
+    const bool back = parameter && !rb->strcmp(parameter, ITUNESDB_COVER_FLOW_BACK);
 
     if (parameter && !rb->strcmp(parameter, ITUNESDB_ALBUM_LIST))
     {
@@ -9126,12 +9176,14 @@ enum plugin_status plugin_start(const void *parameter)
         /* the codec takes the CPU from the animation, the covers going by
            slower with music: it waits for them, unless the settings say to
            keep it playing */
-        if (rb->global_settings->coverflow_pause
+        if (rb->global_settings->coverflow_pause && !back
             && rb->audio_status() == AUDIO_STATUS_PLAY)
         {
             rb->audio_pause();
             paused_music = true;
         }
+        open_tracks_at_start = back && pf_cfg.back_to_tracks
+                               && rb->audio_status();
 #endif
         ret = pictureflow_main();
 #ifdef ITUNESDB_HAVE_ART
@@ -9149,6 +9201,10 @@ enum plugin_status plugin_start(const void *parameter)
             pf_cfg.last_album = target;
         else
             pf_cfg.last_album = center_index;
+        /* the view Now Playing's Menu opens again */
+        pf_cfg.back_to_tracks = ret == PLUGIN_GOTO_WPS
+                                && pf_state == pf_show_tracks
+                                && !show_tracks_while_browsing;
 
         if (configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS,
                             CONFIG_VERSION))

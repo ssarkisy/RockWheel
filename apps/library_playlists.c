@@ -3502,9 +3502,13 @@ int lp_view(const char *file, int *selection)
                 break;
             case ACTION_TREE_STOP:
                 /* holding Play goes to Now Playing, if it has a song: stopped,
-                   it shows it paused and starts nothing (wpsscrn()) */
+                   it shows it paused and starts nothing (wpsscrn()); Menu
+                   there to where the music was started */
                 if (now_playing_available())
+                {
+                    root_menu_play_held();
                     ret = PLAYLIST_VIEWER_OK;
+                }
                 break;
             case ACTION_STD_MENU:
                 ret = PLAYLIST_VIEWER_MAINMENU;
@@ -3540,6 +3544,16 @@ static bool playing_playlist(char *name, size_t size)
     if (is_copy(name))
         strmemccpy(name, playing_copy_source(), size);
     return name[0] && lp_viewable(name) && file_exists(name);
+}
+
+int lp_view_back(const char *file, int *selection)
+{
+    /* at the song playing, if the music is from it, rather than the row it
+       was left at (the owner's rule, 2026-11-24) */
+    lp.at_playing = playing_from(file);
+    const int ret = lp_view(file, selection);
+    lp.at_playing = false;
+    return ret;
 }
 
 bool lp_playing_from_known(void)

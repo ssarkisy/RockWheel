@@ -207,14 +207,22 @@ void catalog_playlist_moved(const char *from, const char *to)
 }
 
 /* a playlist's screen: from the database, as Songs is, the import's and the
-   iPod's own alike; as Rockbox has it without the database */
-static int view_playlist(char *file, int *selection)
+   iPod's own alike; as Rockbox has it without the database. Opened again as
+   it was left, back at the song playing if the music is from it */
+static int view_playlist_as(char *file, int *selection, bool back)
 {
 #ifdef HAVE_TAGCACHE
     if (lp_viewable(file))
-        return lp_view(file, selection);
+        return back ? lp_view_back(file, selection) : lp_view(file, selection);
+#else
+    (void)back;
 #endif
     return playlist_viewer_ex(file, selection);
+}
+
+static int view_playlist(char *file, int *selection)
+{
+    return view_playlist_as(file, selection, false);
 }
 
 /* A playlist picked by Play, as Playlists shows the catalogue: its songs
@@ -276,7 +284,8 @@ restart:
 
     if (view && reopen_last_playlist)
     {
-        switch (view_playlist(most_recent_playlist, &most_recent_selection))
+        switch (view_playlist_as(most_recent_playlist, &most_recent_selection,
+                                 true))
         {
             case PLAYLIST_VIEWER_OK:
             {

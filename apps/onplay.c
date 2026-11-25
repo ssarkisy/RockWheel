@@ -1348,9 +1348,13 @@ static int onplaymenu_callback(int action,
 
 #ifdef HAVE_TAGCACHE
 /* Cover Flow at the album playing: leaving it goes back to the WPS, not to
-   this menu */
+   this menu. Now Playing opened from Cover Flow goes back to that one
+   instead, as Menu does, so that Cover Flow appears once (the owner's loop
+   rule, 2026-11-24) */
 static int open_cover_flow(void)
 {
+    if (root_menu_back_to_cover_flow())
+        return GO_TO_WPS;
     menu_now_playing_away(true);
     const int ret = root_menu_cover_flow(NULL, NULL);
     menu_now_playing_away(false);
@@ -1419,8 +1423,9 @@ static int go_to_lists(int at, bool artist)
         default:
             transition_begin(TRANSITION_FORWARD);
             screen = root_menu_go_to_track(path, artist);
-            /* not found: nothing slides */
-            if (screen < 0)
+            /* not found: nothing slides; held Menu and held Play in the
+               lists go on (onplay()'s ONPLAY_MAINMENU, ONPLAY_START_PLAY) */
+            if (screen == GO_TO_NOT_FOUND)
             {
                 transition_cancel();
                 screen = 0;

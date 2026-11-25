@@ -39,22 +39,33 @@
    which go there in place, the song in go_to, "" for none. The plugin's answer,
    PLUGIN_OK to go back */
 int root_menu_cover_flow(const char *at, char *go_to);
+/* A menu over Now Playing asked for Now Playing to go back to the screen under
+   it, as Menu does (root_menu_back_to_cover_flow(), and a go-to that found the
+   list under it): true once, as Now Playing asks after the menu */
+bool root_menu_wps_leave_asked(void);
+/* Play held in a screen that then gives GO_TO_WPS, not GO_TO_PREVIOUS_MUSIC
+   (Search, a playlist's screen): Now Playing's Menu goes back to where the
+   music was started, as after Play held anywhere */
+void root_menu_play_held(void);
 /* Cover Flow's Go to Artist, the song's file, as it quits: false if it isn't
    offered, as Cover Flow isn't open by root_menu_cover_flow(); with NULL, that
    alone */
 bool root_menu_go_to_later(const char *path);
 #ifdef HAVE_TAGCACHE
+/* what the go-to's below give back for nothing to open: apart from every
+   screen, GO_TO_ROOT (held Menu in the lists) among them */
+#define GO_TO_NOT_FOUND (-100)
 /* The Music lists at the song playing, or at a song by its file, from the menus
    over Now Playing, of Search's songs, a playlist's and Cover Flow: Menu there
    goes back, and the place in the lists stays as it was, unless music was
    started from them. 0 for going back, or else the screen to go to; for a
-   song by its file, -1 if it isn't found */
+   song by its file, GO_TO_NOT_FOUND if it isn't found */
 int root_menu_go_to_playing(bool artist);
 int root_menu_go_to_track(const char *path, bool artist);
 /* the same where the music playing was started, Now Playing's Playing From */
 int root_menu_playing_from(void);
-/* The list an artist or an album opens, from Search: -1 if it isn't there,
-   0 for going back, or else the screen to go to */
+/* The list an artist or an album opens, from Search: GO_TO_NOT_FOUND if it
+   isn't there, 0 for going back, or else the screen to go to */
 int root_menu_go_to_name(int tag, const char *name);
 /* and an album's, by its album artist's seek too, as Albums has the albums
    of a name apart; by its name alone with -1 */
@@ -63,6 +74,10 @@ int root_menu_go_to_album(const char *name, int32_t artist);
    from its row in Albums or Artists, the lists left as they were. True if
    the music plays */
 bool root_menu_play_found(int tag, const char *name, int32_t artist);
+/* Now Playing opened from Cover Flow, which a menu over it asks for again
+   (Select with Play): Now Playing to go back to that one, as Menu does, so
+   that it appears once (the owner's loop rule, 2026-11-24). True if so */
+bool root_menu_back_to_cover_flow(void);
 /* Settings > Music Menu > Group by Album Artist's callback: the lists of
    artists change, and where the lists were left in them with them */
 void root_menu_artists_grouping_changed(bool on);

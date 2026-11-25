@@ -137,6 +137,9 @@ bool tree_catalog_show_item(char *name, int attr, struct tree_context *c);
 /* the playlist the catalogue, as Playlists shows it, gave back last was
    picked by Play, to be played at once rather than shown */
 bool tree_picked_to_play(void);
+/* Music's lists, as they open next, on the song playing if the list is the
+   one the music is from: back from Now Playing by Menu; false: not after all */
+void tree_select_playing(bool select);
 int rockbox_browse(struct browse_context *browse);
 int create_playlist(void);
 void resume_directory(const char *dir);

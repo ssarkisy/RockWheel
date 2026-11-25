@@ -137,6 +137,11 @@ static struct entry *get_valid_entry(const char* funcname,
 /* On-The-Go, as on a stock iPod: a row of its own, the last of the catalogue's
    top, when it's viewed; none of the catalogue's entries */
 static bool catalog_otg, catalog_otg_empty;
+#ifdef HAVE_TAGCACHE
+/* Music's lists opened next are those Now Playing was left for by Menu
+   (root_menu.c): on the song playing, in the list the music is from */
+static bool select_playing;
+#endif
 static bool catalog_on_otg; /* the cursor was on it, and goes back there */
 /* The rows of the catalogue before its entries, a kind each: as it's viewed,
    Sort By over each level, Unsynced at its top, and New Playlist and New
@@ -1192,6 +1197,18 @@ static int update_dir(void)
 #ifdef HAVE_LCD_COLOR
     gui_synclist_set_color_callback(list, &tree_get_filecolor);
 #endif
+#ifdef HAVE_TAGCACHE
+    /* back from Now Playing to the list the music plays from: on its song
+       playing, not the row chosen before the music went on (the owner's
+       rule, 2026-11-24) */
+    if (id3db && select_playing)
+    {
+        const int playing = tagtree_playing_row(&tc, tc.selected_item);
+        if (playing >= 0)
+            tc.selected_item = playing;
+    }
+    select_playing = false;
+#endif
     if( tc.selected_item >= tc.filesindir)
         tc.selected_item=tc.filesindir-1;
 
@@ -1517,6 +1534,11 @@ static bool tree_row_plays(void)
     const struct entry *entry = get_valid_entry(__func__, &tc, index_of(row));
     return (entry->attr & FILE_ATTR_MASK) == FILE_ATTR_M3U
            && !(entry->attr & (ATTR_DIRECTORY | ENTRY_EMPTY_PLAYLIST));
+}
+
+void tree_select_playing(bool select)
+{
+    select_playing = select;
 }
 
 /* the playlist the catalogue gave back last was picked by Play */

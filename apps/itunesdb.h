@@ -261,6 +261,11 @@ bool itunesdb_import_kept_art(void);
 /* the parameter of Cover Flow's plugin for making its album list and leaving,
    at the end of an import */
 #define ITUNESDB_ALBUM_LIST "--album-list"
+/* and for opening it again at the album playing, from Now Playing's Menu, as
+   it was left for Now Playing: its tracks, at the one playing, if it was left
+   from them; the music as it is, not paused by Cover Flow Pauses Music, as
+   going back changes nothing of it */
+#define ITUNESDB_COVER_FLOW_BACK "--back"
 
 struct bitmap;
 

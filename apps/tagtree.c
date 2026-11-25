@@ -734,6 +734,11 @@ static struct tagtree_place browse_place, scratch_place;
    to the row, where the music was started (saved_place) */
 static struct tagtree_place played_place;
 static unsigned int played_starts = ~0u;
+/* the lists of a go-to left for Now Playing, as they were, if no music was
+   started from them, as Music's own place comes back (tagtree_left_go_to()):
+   Menu in Now Playing opens them again (tagtree_resume_go_to()) */
+static struct tagtree_place left_place;
+static bool left_kept;
 
 /* Artists' search with the other artists at its top, out of tagtree's buffer, as
    go_to_row() makes it: [0] of the albums' artists, [1] of the songs'. Each is
@@ -772,7 +777,8 @@ static int move_callback(int handle, void* current, void* new)
     if (csi && in_buffer(csi, current))
         UPDATE(csi, diff);
     struct tagtree_place *const places[] = {
-        &saved_place, &go_to_place, &browse_place, &scratch_place, &played_place
+        &saved_place, &go_to_place, &browse_place, &scratch_place, &played_place,
+        &left_place
     };
     for (size_t i = 0; i < ARRAYLEN(places); i++)
     {
@@ -5497,6 +5503,85 @@ bool tagtree_go_to_from(int *dirlevel, int *selected_item)
     return true;
 }
 
+/* The level of a place's lists, from its own (top) down to floor, whose list
+   is key; -1 for none, as for a copy of Artists, whose top Menu leaves another
+   way (tagtree_exit()) */
+static int place_level_of(const struct tagtree_place *place, uint32_t key,
+                          int top, int floor)
+{
+    if (!place->csi || place->csi == &artists_copy[0]
+        || place->csi == &artists_copy[1])
+        return -1;
+    for (int level = top; level >= MAX(floor, 1); level--)
+    {
+        const bool own = level == place->dirlevel;
+        if (list_hash(own ? place->currtable : place->table_history[level],
+                      own ? place->currextra : place->extra_history[level],
+                      place->csi, place->result_seek, place->result_artist,
+                      false) == key)
+            return level;
+    }
+    return -1;
+}
+
+/* and that place at that level, as Menu would leave it: at the row it was
+   gone down from */
+static void place_up_to(struct tagtree_place *place, int level)
+{
+    if (level >= place->dirlevel)
+        return;
+    place->selected_item = place->selected_item_history[level];
+    place->currtable = place->table_history[level];
+    place->currextra = place->extra_history[level];
+    place->dirlevel = level;
+}
+
+/* The lists a go-to has just opened (go_to_row(), tagtree_go_to_from()) are
+   the list they were opened over, where the lists were (go_to_place), or with
+   kept those a go-to left as they were (tagtree_left_go_to()): the same list
+   by place_key(), whatever its row; or one of the levels above it, down to
+   floor, which Menu would go up to (the owner's decision, 2026-11-24), that
+   place then at that level, as Menu would leave it. Not above a list opened
+   in place there, whose Menu goes back to its song instead; within one, that
+   list's way back kept with the place (left_browse); and that song's own
+   levels then too (browse_place, not Cover Flow's), which Menu goes back to
+   from there: that place then at that level, the list opened in place left
+   behind (review 3's note, 2026-11-25) */
+static int left_browse_of(const struct tagtree_place *place);
+static void left_browse_up(int dirlevel, uint32_t list);
+static bool left_browse_from_list(void);
+static void left_browse_left(void);
+bool tagtree_go_to_is_open(bool kept, int floor)
+{
+    const struct tree_context *c = tree_get_context();
+    struct tagtree_place *under = kept && left_kept ? &left_place : &go_to_place;
+    if (!under->csi || !csi)
+        return false;
+    const uint32_t key = list_hash(c->currtable, c->currextra, csi,
+                                   csi->result_seek, csi->result_artist, false);
+    if (key == place_key(under))
+        return true;
+    const int browsed = left_browse_of(under);
+    int level = place_level_of(under, key, under->dirlevel - 1,
+                               MAX(floor, browsed));
+    if (level >= 0)
+    {
+        if (browsed >= 0)
+            left_browse_up(level, key);
+        place_up_to(under, level);
+        return true;
+    }
+    if (browsed < 0 || !left_browse_from_list())
+        return false;
+    level = place_level_of(&browse_place, key, browse_place.dirlevel, floor);
+    if (level < 0)
+        return false;
+    left_browse_left();
+    *under = browse_place;
+    place_up_to(under, level);
+    return true;
+}
+
 /* That place kept over a boot, in a file written as the iPod shuts down or
    USB is connected, not as music starts, which it would make wait: its
    pointers as the menus' and searches' numbers */
@@ -5903,6 +5988,16 @@ bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item)
    Cover Flow instead, gone back to at the album of that song */
 static int browse_level = -1;
 static int browse_cover_flow = -1;
+/* how many times browse_place was written, for a list opened in place left for
+   Now Playing (left_browse) to be gone back through only if none was opened in
+   place since: Menu in it back to its song once Now Playing's Menu opens it
+   again, if it is still that list at that level (tagtree_resume_browse()) */
+static unsigned int browse_count;
+static struct {
+    int level, cover_flow, dirlevel;
+    unsigned int count;
+    uint32_t list;
+} left_browse = { .level = -1 };
 
 /* The first song of a row that isn't one, of the list: as the list's search
    finds it, by the rows chosen on the way and the row's own tag. -1 if none */
@@ -5981,7 +6076,10 @@ static bool browse_to(struct tree_context *c, int idx, bool artist)
     c->selected_item = row;
     browse_level = c->dirlevel;
     if (first)
+    {
         browse_cover_flow = -1;
+        browse_count++;
+    }
     return true;
 }
 
@@ -6049,12 +6147,83 @@ bool tagtree_end_browse(int *dirlevel, int *selected_item, char *buf, size_t siz
     return found;
 }
 
-/* the lists left, for Now Playing or another screen: they stay where they are,
-   as after Go to over Now Playing, Menu there going up as by hand */
-void tagtree_forget_browse(void)
+/* the list the lists are at now, which a place's key would be */
+static uint32_t list_now(void)
 {
+    const struct tree_context *c = tree_get_context();
+    return csi ? list_hash(c->currtable, c->currextra, csi, csi->result_seek,
+                           csi->result_artist, false) : 0;
+}
+
+/* the lists left, for Now Playing or another screen: they stay where they are,
+   Menu there going up as by hand; but left for Now Playing (keep), a list
+   opened in place is noted, for Now Playing's Menu to open it again as it
+   was (tagtree_resume_browse()) */
+void tagtree_forget_browse(bool keep, int dirlevel)
+{
+    if (keep)
+    {
+        left_browse.level = browse_level;
+        left_browse.cover_flow = browse_cover_flow;
+        left_browse.dirlevel = dirlevel;
+        left_browse.count = browse_count;
+        left_browse.list = browse_level >= 0 ? list_now() : 0;
+    }
     browse_level = -1;
     browse_cover_flow = -1;
+}
+
+/* the level of the list opened in place noted as those lists were left, if
+   they are still that place: the same level and list, nothing opened in place
+   since; else -1 */
+static int left_browse_of(const struct tagtree_place *place)
+{
+    return left_browse.level >= 0 && left_browse.dirlevel == place->dirlevel
+           && left_browse.count == browse_count
+           && left_browse.list == place_key(place) ? left_browse.level : -1;
+}
+
+/* and that place moved up to a level within it (tagtree_go_to_is_open()) */
+static void left_browse_up(int dirlevel, uint32_t list)
+{
+    left_browse.dirlevel = dirlevel;
+    left_browse.list = list;
+}
+
+/* the list opened in place was opened from a list's song (browse_place), not
+   Cover Flow's */
+static bool left_browse_from_list(void)
+{
+    return left_browse.cover_flow < 0;
+}
+
+/* and gone back to that song's lists instead: left behind */
+static void left_browse_left(void)
+{
+    left_browse.level = -1;
+}
+
+/* The lists opened again from Now Playing at dirlevel: if they are the list
+   opened in place they were left for it at, Menu there goes back to its song
+   again, as before (the owner's rule, 2026-11-24). True if so */
+static bool resume_browse(int dirlevel)
+{
+    const bool same = left_browse.level >= 0 && dirlevel == left_browse.dirlevel
+                      && left_browse.level <= dirlevel
+                      && left_browse.count == browse_count
+                      && list_now() == left_browse.list;
+    if (same)
+    {
+        browse_level = left_browse.level;
+        browse_cover_flow = left_browse.cover_flow;
+    }
+    left_browse.level = -1;
+    return same;
+}
+
+void tagtree_resume_browse(int dirlevel)
+{
+    resume_browse(dirlevel);
 }
 bool tagtree_go_to_name(int tag, const char *name, int *dirlevel, int *selected_item)
 {
@@ -6159,6 +6328,34 @@ void tagtree_resume_section(int lang, int *dirlevel, int *selected_item)
     place_save(&go_to_place, *dirlevel, *selected_item);
     section_open = section_of(lang);
     go_to_level = 1;
+}
+
+/* A go-to's lists left for Now Playing, before tagtree_end_go_to(): kept as
+   they are if no music was started from them, as Music's own place comes
+   back; else they are the lists' place anyway */
+void tagtree_left_go_to(bool keep, int dirlevel, int selected_item)
+{
+    left_kept = keep;
+    if (keep)
+        place_save(&left_place, dirlevel, selected_item);
+}
+
+/* Those lists opened again from Now Playing, as they were left: Menu goes up
+   them as before, and leaves them at the go-to's first level, level, or at
+   the list itself if that is above it (a list opened in place). False if they
+   can't open. */
+bool tagtree_resume_go_to(int level, int *dirlevel, int *selected_item)
+{
+    if (level < 0 || !tagtree_ready() || !tagcache_is_usable())
+        return false;
+    place_save(&go_to_place, *dirlevel, *selected_item);
+    if (left_kept)
+        place_restore(&left_place, dirlevel, selected_item);
+    left_kept = false;
+    /* a list opened in place goes back to its song first, and then up to the
+       go-to's level */
+    go_to_level = resume_browse(*dirlevel) ? level : MIN(level, *dirlevel);
+    return true;
 }
 
 int tagtree_go_to_level(void)
@@ -6494,10 +6691,12 @@ void tagtree_albums_reordered(void)
     albums_place_reset(&saved_place, false);
     albums_place_reset(&go_to_place, false);
     albums_place_reset(&played_place, false);
+    albums_place_reset(&left_place, false);
     /* and Recently Added, whose rows are the table's too */
     albums_place_reset(&saved_place, true);
     albums_place_reset(&go_to_place, true);
     albums_place_reset(&played_place, true);
+    albums_place_reset(&left_place, true);
     if ((is_albums(csi) || is_recent(csi)) && max_history_level >= 1)
     {
         selected_item_history[1] = -1;
@@ -6544,6 +6743,7 @@ void tagtree_artists_grouping_changed(int *dirlevel, int *selected_item)
     artists_place_cut(&go_to_place);
     artists_place_cut(&browse_place);
     artists_place_cut(&played_place);
+    artists_place_cut(&left_place);
     /* where the lists were left */
     place_save(&scratch_place, *dirlevel, *selected_item);
     if (artists_place_cut(&scratch_place))
@@ -6582,6 +6782,7 @@ void tagtree_compilations_changed(int *dirlevel, int *selected_item)
     artists_rows_cut(&go_to_place);
     artists_rows_cut(&browse_place);
     artists_rows_cut(&played_place);
+    artists_rows_cut(&left_place);
     if (dirlevel && selected_item)
     {
         place_save(&scratch_place, *dirlevel, *selected_item);
@@ -6640,6 +6841,7 @@ void tagtree_sort_by_switched(struct tree_context *c)
         all_songs_place_reset(&go_to_place);
         all_songs_place_reset(&browse_place);
         all_songs_place_reset(&played_place);
+        all_songs_place_reset(&left_place);
     }
     else if (is_songs(csi))
     {
@@ -6648,6 +6850,7 @@ void tagtree_sort_by_switched(struct tree_context *c)
         songs_place_reset(&go_to_place);
         songs_place_reset(&browse_place);
         songs_place_reset(&played_place);
+        songs_place_reset(&left_place);
         const int section = section_of(LANG_SONGS);
         if (section >= 0)
             section_rows[section] = -1;
@@ -6663,6 +6866,7 @@ void tagtree_sort_by_switched(struct tree_context *c)
         place_reorder_reset(&go_to_place, persons_list);
         place_reorder_reset(&browse_place, persons_list);
         place_reorder_reset(&played_place, persons_list);
+        place_reorder_reset(&left_place, persons_list);
     }
     else if (podcasts_shows(csi, c->currtable, c->currextra))
     {
@@ -6676,6 +6880,7 @@ void tagtree_sort_by_switched(struct tree_context *c)
         place_reorder_reset(&go_to_place, podcasts_shows);
         place_reorder_reset(&browse_place, podcasts_shows);
         place_reorder_reset(&played_place, podcasts_shows);
+        place_reorder_reset(&left_place, podcasts_shows);
     }
     else
     {
@@ -6689,6 +6894,7 @@ void tagtree_sort_by_switched(struct tree_context *c)
         albums_place_reset(&go_to_place, false);
         albums_place_reset(&browse_place, false);
         albums_place_reset(&played_place, false);
+        albums_place_reset(&left_place, false);
     }
     settings_save();
 }
@@ -6700,12 +6906,15 @@ void tagtree_music_menu_changed(bool shown)
     saved_place.selected_item_history[0] = 0;
     go_to_place.selected_item_history[0] = 0;
     played_place.selected_item_history[0] = 0;
+    left_place.selected_item_history[0] = 0;
     if (saved_place.dirlevel == 0)
         saved_place.selected_item = 0;
     if (go_to_place.dirlevel == 0)
         go_to_place.selected_item = 0;
     if (played_place.dirlevel == 0)
         played_place.selected_item = 0;
+    if (left_place.dirlevel == 0)
+        left_place.selected_item = 0;
     root_rows_changed = true;
 }
 
@@ -10257,6 +10466,34 @@ bool tagtree_row_is_playing(struct tree_context *c, int row, long playing)
         return false;
     const uint32_t queue = tagtree_queue_list();
     return queue && queue == tagtree_list_id(c->currtable, c->currextra, csi);
+}
+
+/* The row of the song playing in this list, if it is the list the music is
+   from, the one its speaker marks (tagtree_row_is_playing()): looked for from
+   the row from on, where it usually is or a few rows after, and then from the
+   top; -1 for none */
+int tagtree_playing_row(struct tree_context *c, int from)
+{
+    const long playing = gui_synclist_song_playing();
+    if (playing <= 0 || c->currtable == TABLE_ROOT || !csi)
+        return -1;
+    const uint32_t queue = tagtree_queue_list();
+    if (!queue || queue != tagtree_list_id(c->currtable, c->currextra, csi))
+        return -1;
+    const int first = c->special_entry_count;
+    const int n = c->filesindir - first;
+    if (n <= 0)
+        return -1;
+    const int start = from >= first && from < c->filesindir ? from - first : 0;
+    for (int k = 0; k < n; k++)
+    {
+        const int row = first + (start + k) % n;
+        const struct tagentry *entry = tagtree_get_entry(c, row);
+        if (entry && entry->newtable == TABLE_PLAYTRACK
+            && entry->extraseek + 1 == playing)
+            return row;
+    }
+    return -1;
 }
 
 int tagtree_get_attr(struct tree_context* c)

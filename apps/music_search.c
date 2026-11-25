@@ -2670,7 +2670,9 @@ static int open_result(int g, int index)
     int screen = g == GROUP_ALBUMS ?
         root_menu_go_to_album(pool + r->name, no < 0 ? -1 : album_years_artist(no))
         : root_menu_go_to_name(group_tag[g], pool + r->name);
-    if (screen < 0)
+    /* not found; held Menu (GO_TO_ROOT) and held Play there go on to the
+       main menu and Now Playing, as from Search itself */
+    if (screen == GO_TO_NOT_FOUND)
     {
         transition_cancel();
         return 0;
@@ -2857,6 +2859,14 @@ static int show_group(int g)
             case ACTION_TREE_WPS:
                 ret = GO_TO_WPS;
                 break;
+            case ACTION_TREE_STOP:
+                /* Play held: Now Playing, if it has a song, as from any list */
+                if (now_playing_available())
+                {
+                    root_menu_play_held();
+                    ret = GO_TO_WPS;
+                }
+                break;
             case ACTION_STD_MENU:
                 ret = GO_TO_ROOT;
                 break;
@@ -3027,6 +3037,15 @@ int music_search_screen(void *param)
                 case ACTION_TREE_WPS:
                     ret = GO_TO_WPS;
                     break;
+                case ACTION_TREE_STOP:
+                    /* Play held: Now Playing, if it has a song, as from any
+                       list */
+                    if (now_playing_available())
+                    {
+                        root_menu_play_held();
+                        ret = GO_TO_WPS;
+                    }
+                    break;
                 case ACTION_STD_MENU:
                     ret = GO_TO_ROOT;
                     break;
@@ -3138,7 +3157,7 @@ int music_search_screen(void *param)
     names_let_go();
     if (!was_wide)
         menu_set_wide(false);
-    if (ret == GO_TO_WPS)
+    if (ret == GO_TO_WPS || ret == GO_TO_PREVIOUS_MUSIC)
         pop_current_activity_without_refresh();
     else
         pop_current_activity();
