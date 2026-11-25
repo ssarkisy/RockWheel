@@ -2987,7 +2987,8 @@ const struct settings_list settings[] = {
                    wheel_sensitivity_changed, 3, ID2P(LANG_WHEEL_SENSITIVITY_LOW),
                    ID2P(LANG_WHEEL_SENSITIVITY_MEDIUM), ID2P(LANG_WHEEL_SENSITIVITY_HIGH)),
 #endif
-    /* Music > Albums' first row, Sort By, and nowhere in Settings */
+    /* Music > Albums' Sort By, in the menu of a held Select in the list
+       (onplay.c), and nowhere in Settings */
     CHOICE_SETTING(0, albums_sort, LANG_SORT_BY, 0, "albums sort",
                    "year,name,artist", NULL, 3, ID2P(LANG_SORT_YEAR),
                    ID2P(LANG_SORT_NAME), ID2P(LANG_SORT_ARTIST)),
@@ -3025,6 +3026,9 @@ const struct settings_list settings[] = {
                   "artist covers", list_covers_changed),
     OFFON_SETTING(0, playlist_covers, LANG_PLAYLIST_COVERS, true,
                   "playlist covers", list_covers_changed),
+    /* the hint of where Sort By is, how many times it showed: no row */
+    INT_SETTING(0, sort_by_hints, -1, 0, "sort by hints", UNIT_INT, 0,
+                SORT_BY_HINTS, 1, NULL, NULL, NULL),
     OFFON_SETTING(0, list_scrollbar, LANG_LIST_SCROLLBAR, true,
                   "list scrollbar", NULL),
 #if (CONFIG_BATTERY_MEASURE != 0)

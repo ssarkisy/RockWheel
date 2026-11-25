@@ -7096,7 +7096,7 @@
 </phrase>
 <phrase>
   id: LANG_SORT_BY
-  desc: Music > Albums: the first row, which sorts the albums by their year or by their name; its value, Year or Name, shows at the right end as a setting's does
+  desc: the row of the menu a held Select opens in Music > Albums, Songs, an artist's albums, their All Songs, Podcasts and Playlists, and the title of its choice of the list's orders; its value, as Year or Name, shows at the right end as a setting's does
   user: core
   <source>
     *: "Sort By"
@@ -12380,6 +12380,20 @@
   </source>
   <dest>
     *: "फिर से शुरू होने के बाद फ़ाइल %s को %s पर भेजें"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SORT_BY_HINT
+  desc: a short hint over Albums, Songs, an artist's albums, their All Songs, Podcasts or Playlists the first times one is opened: the list's Sort By is in the menu that holding the Select button opens; use the language's own phrase for Sort By (LANG_SORT_BY) and for holding Select
+  user: core
+  <source>
+    *: "Sort By is in the hold-Select menu"
+  </source>
+  <dest>
+    *: "क्रम उस मेनू में है जो Select दबाए रखने पर खुलता है"
   </dest>
   <voice>
     *: ""

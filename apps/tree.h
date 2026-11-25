@@ -131,6 +131,13 @@ void set_current_file(const char *path);
 /* the cursor on this file or folder of the folder viewed, as the list is
    loaded again after it was made or renamed */
 void tree_select_after_reload(const char *path);
+/* Sort By in the menu a held Select opens on a row of a list with an order
+   to choose, Music's or Playlists': the setting of the list's order while
+   that menu is open, NULL otherwise; its value's name; and one chosen, the
+   list loaded again in it with the row selected kept */
+int *tree_sort_setting(void);
+const char *tree_sort_value(void);
+void tree_sort_chosen(int value);
 /* Playlists' callback_show_item: at the catalogue's top the playlists and
    folders synced from the computer, and in Unsynced those that aren't */
 bool tree_catalog_show_item(char *name, int attr, struct tree_context *c);

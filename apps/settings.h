@@ -1085,13 +1085,14 @@ struct user_settings
     unsigned char rwrs_file[MAX_FILENAME+1];  /* last remote-wrs */
 #endif
 #endif
-    /* Music > Albums, as its first row sorts it: 0 by year, 1 by name, 2 by
-       album artist. Last, to keep the layout plugins see */
+    /* Music > Albums, as Sort By in the menu of a held Select there sorts it:
+       0 by year, 1 by name, 2 by album artist. Last, to keep the layout
+       plugins see */
     int albums_sort;
     /* Artists and a genre's artists by the albums' artists, as iOS's Group By
        Album Artist; off, by the songs' own. After the rest, as albums_sort */
     bool artists_by_album_artist;
-    /* All Songs, as its first row sorts it: 0 by album, 1 by name. After the
+    /* All Songs, as its Sort By sorts it: 0 by album, 1 by name. After the
        rest, as albums_sort */
     int all_songs_sort;
     /* Music > Albums: each album's year and album artist under its name, and
@@ -1109,7 +1110,7 @@ struct user_settings
     /* Settings > Appearance: the cover beside the menus pans slowly from side
        to side (Moving Cover) */
     bool moving_cover;
-    /* Music > Songs, as its first row sorts it: 0 by name, 1 by artist, 2 by
+    /* Music > Songs, as its Sort By sorts it: 0 by name, 1 by artist, 2 by
        album, 3 by year */
     int songs_sort;
 #ifdef HAVE_PITCHCONTROL
@@ -1130,8 +1131,8 @@ struct user_settings
        the settings (%St) */
     int np_rating;
     bool np_format;
-    /* Playlists, as its first row and each of its folders' sorts them: 0 by
-       name from A to Z, 1 from Z to A */
+    /* Playlists, its top and each of its folders, as its Sort By sorts them:
+       0 by name from A to Z, 1 from Z to A */
     int playlists_sort;
     /* Settings > Appearance > Tinted Background, in a theme that has a tone:
        the colour tints the surfaces and small text too, not only the
@@ -1178,12 +1179,12 @@ struct user_settings
     /* the user's preset the EQ is set to with eq_preset EQ_ID_FILE, by its
        file's path from /.rockbox/eqs, as "AutoEq/HD 650 ParametricEQ.txt" */
     char eq_preset_file[EQ_PATH_MAX];
-    /* An artist's, album artist's or composer's albums, as the Sort By atop
-       them sorts them: 0 by year, 1 by name. One for all of them, apart from
+    /* An artist's, album artist's or composer's albums, as their Sort By
+       sorts them: 0 by year, 1 by name. One for all of them, apart from
        Music > Albums' albums_sort */
     int artist_albums_sort;
-    /* Music > Podcasts, as its first row sorts the shows: 0 by name from A
-       to Z, 1 the show with the newest episode first */
+    /* Music > Podcasts, as its Sort By sorts the shows: 0 by name from A to
+       Z, 1 the show with the newest episode first */
     int podcasts_sort;
     /* Settings > Appearance > Volume Number: Now Playing's level under its
        volume bar, "Volume: 62%" (the skins' %nv); on at first */
@@ -1195,7 +1196,14 @@ struct user_settings
        at first. Off, those lists are of names alone, as before */
     bool artist_covers;
     bool playlist_covers;
+    /* the hint "Sort By is in the hold-Select menu", shown as one of the lists
+       with an order to choose is entered (tree.c): how many times so far, up
+       to SORT_BY_HINTS, which the first menu with Sort By sets too */
+    int sort_by_hints;
 };
+
+/* the times the hint of where Sort By is shows at most (sort_by_hints) */
+#define SORT_BY_HINTS 3
 
 /* global settings */
 extern struct user_settings global_settings;

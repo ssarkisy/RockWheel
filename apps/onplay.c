@@ -37,6 +37,8 @@
 #include "screens.h"
 #include "tree.h"
 #include "settings.h"
+#include "settings_list.h"
+#include "option_select.h"
 #include "gui/ui_theme.h"
 #include "playlist_viewer.h"
 #include "talk.h"
@@ -2301,6 +2303,93 @@ static int delete_callback(int action, const struct menu_item_ex *this_item,
 }
 #endif
 
+/* Sort By, in the menu of a held Select on a row of a list with an order to
+   choose (tree_sort_setting()): Albums, Songs, Podcasts' shows, a person's
+   albums, their All Songs and Playlists. Its value at the right end; Select
+   opens the choice of the orders, one chosen the list in it at once, on the
+   row it was on, Menu there back to this menu. Its first showing ends the
+   hint of where it is (tree.c) */
+static int sort_chosen_value;
+static bool sort_was_chosen;
+static void sort_chosen(int value)
+{
+    sort_chosen_value = value;
+    sort_was_chosen = true;
+}
+
+bool onplay_sort_choose(void)
+{
+    int *var = tree_sort_setting();
+    const struct settings_list *setting = var ? find_setting(var) : NULL;
+    if (!setting || !(setting->flags & F_CHOICE_SETTING))
+        return false;
+    /* a copy of the setting with a variable of its own, told of a choice
+       made with Select alone: Menu leaves the order as it was */
+    int value = *var;
+    struct choice_setting choice = *setting->choice_setting;
+    choice.option_callback = sort_chosen;
+    struct settings_list copy = *setting;
+    copy.flags |= F_CB_ON_SELECT_ONLY;
+    copy.setting = &value;
+    copy.choice_setting = &choice;
+    sort_was_chosen = false;
+    option_screen(&copy, NULL, false, ID2P(LANG_SORT_BY));
+    if (!sort_was_chosen)
+        return false;
+    if (sort_chosen_value != *var)
+        tree_sort_chosen(sort_chosen_value);
+    return true;
+}
+
+static int sort_by_do(void)
+{
+    if (!onplay_sort_choose())
+        return 0;
+    onplay_result = ONPLAY_RELOAD_DIR;
+    return 1;
+}
+
+static char *sort_by_name(int selected_item, void *data, char *buffer,
+                          size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_SORT_BY), tree_sort_value());
+    return buffer;
+}
+
+static int sort_by_callback(int action, const struct menu_item_ex *this_item,
+                            struct gui_synclist *this_list)
+{
+    (void)this_item; (void)this_list;
+    if (action != ACTION_REQUEST_MENUITEM)
+        return action;
+    if (!tree_sort_setting())
+        return ACTION_EXIT_MENUITEM;
+    if (global_settings.sort_by_hints < SORT_BY_HINTS)
+    {
+        global_settings.sort_by_hints = SORT_BY_HINTS;
+        settings_save();
+    }
+    return action;
+}
+
+MENUITEM_FUNCTION_DYNTEXT(sort_by_item,
+                          MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
+                          sort_by_do, sort_by_name, NULL, NULL,
+                          sort_by_callback, Icon_NOICON);
+
+/* and the menu of a row with no other, as the catalogue's Unsynced: Sort By
+   and Cancel, by the row's name */
+static char sort_menu_title[MAX_PATH];
+MAKE_ONPLAYMENU(sort_onplay_menu, sort_menu_title, onplay_cancel_callback,
+                Icon_NOICON, &sort_by_item, &cancel_item);
+
+void onplay_sort_menu(const char *title)
+{
+    strmemccpy(sort_menu_title, title, sizeof(sort_menu_title));
+    do_menu(&sort_onplay_menu, NULL, NULL, false);
+}
+
 MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
            onplaymenu_callback, Icon_file_view_menu,
            /* no Add to Playlist, as on a stock iPod: it picked any playlist,
@@ -2331,6 +2420,8 @@ MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
            &set_backdrop_item,
 #endif
            &add_to_faves_item, &set_as_dir_menu,
+           /* the list's order, last before Cancel */
+           &sort_by_item,
            &cancel_item,
          );
 

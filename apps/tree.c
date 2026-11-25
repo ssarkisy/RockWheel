@@ -144,12 +144,11 @@ static bool select_playing;
 #endif
 static bool catalog_on_otg; /* the cursor was on it, and goes back there */
 /* The rows of the catalogue before its entries, a kind each: as it's viewed,
-   Sort By over each level, Unsynced at its top, and New Playlist and New
-   Folder in Unsynced and its folders; as a playlist is picked, New
-   Playlist and New Folder; as a folder is, Move Here and New Folder */
+   Unsynced at its top, and New Playlist and New Folder in Unsynced and its
+   folders; as a playlist is picked, New Playlist and New Folder; as a folder
+   is, Move Here and New Folder. Its Sort By is in the menu of a held Select */
 enum {
-    LEAD_SORT_BY, LEAD_UNSYNCED, LEAD_NEW_PLAYLIST, LEAD_NEW_FOLDER,
-    LEAD_MOVE_HERE,
+    LEAD_UNSYNCED, LEAD_NEW_PLAYLIST, LEAD_NEW_FOLDER, LEAD_MOVE_HERE,
 };
 static unsigned char catalog_leads[3];
 static int catalog_lead; /* how many */
@@ -199,7 +198,6 @@ static void catalog_count(void)
     bool makes = false;
     if (flags & BROWSE_ON_THE_GO)
     {
-        catalog_leads[catalog_lead++] = LEAD_SORT_BY;
         if (tc.dirlevel == 0 && !catalog_mine)
         {
             catalog_leads[catalog_lead++] = LEAD_UNSYNCED;
@@ -386,12 +384,6 @@ static const char* tree_get_filename(int selected_item, void *data,
         {
             switch (catalog_leads[selected_item])
             {
-                case LEAD_SORT_BY:
-                    /* as a setting, its value at the right end */
-                    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_SORT_BY),
-                             str(global_settings.playlists_sort ? LANG_SORT_Z_A
-                                                                : LANG_SORT_A_Z));
-                    return buffer;
                 case LEAD_UNSYNCED:
                     return str(LANG_UNSYNCED);
                 case LEAD_NEW_FOLDER:
@@ -540,8 +532,8 @@ static void tree_before_draw(struct gui_synclist *list)
 #ifdef HAVE_TAGCACHE
 /* The mark before a row's name in Playlists: a playlist's, On-The-Go's too,
    whatever made it, but a smart one's of its own; and a folder's, On This
-   iPod's too. Sort By has none, and New Playlist, New Folder and Move Here the
-   theme's own, if any */
+   iPod's too. New Playlist, New Folder and Move Here the theme's own, if
+   any */
 static int tree_get_mark(int selected_item, void *data)
 {
     struct tree_context *local_tc = (struct tree_context *)data;
@@ -549,8 +541,6 @@ static int tree_get_mark(int selected_item, void *data)
     {
         switch (catalog_leads[selected_item])
         {
-            case LEAD_SORT_BY:
-                return LINE_MARK_NONE;
             case LEAD_UNSYNCED:
                 /* with covers its tile has the folder's mark */
                 return catalog_covers ? LINE_MARK_NONE : LINE_MARK_FOLDER;
@@ -595,7 +585,7 @@ static bool catalog_row(int selected_item, struct lp_row_shown *row,
 }
 
 /* its second line: a playlist's songs and length, a folder's playlists,
-   Unsynced's; none for Sort By, New Playlist and the like */
+   Unsynced's; none for New Playlist and the like */
 static const char *tree_catalog_subline(int selected_item, void *data,
                                         char *buf, size_t size)
 {
@@ -691,8 +681,7 @@ static bool tree_has_children(int selected_item, void * data)
 {
     struct tree_context * local_tc=(struct tree_context *)data;
 #ifdef HAVE_TAGCACHE
-    /* nor a Sort By, which switches in place, nor a group's name; All Songs
-       does lead */
+    /* nor a group's name; All Songs does lead */
     if (*(local_tc->dirfilter) == SHOW_ID3DB)
         return !tree_is_group(selected_item, NULL)
                && tagtree_row_has_children(local_tc, index_of(selected_item));
@@ -961,6 +950,42 @@ static void tree_set_width(void)
         menu_set_wide(wide);
 }
 
+/* The hint of where Sort By is, "Sort By is in the hold-Select menu", over a
+   list with an order to choose as it's entered, not as it's gone back to
+   nor loaded again: SORT_BY_HINTS times at most, none once a menu has shown
+   Sort By (onplay.c). For 2 s, or till a key, which then does what it does */
+static void sort_hint(struct gui_synclist *list, bool id3db)
+{
+    static int level = -1, table, extra;
+    static bool mine;
+    static char dir[MAX_PATH];
+    const bool same = tc.dirlevel == level
+        && (id3db ? tc.currtable == table && tc.currextra == extra
+                  : catalog_mine == mine && !strcmp(tc.currdir, dir));
+    const bool back = tc.dirlevel < level;
+    level = tc.dirlevel;
+    table = tc.currtable;
+    extra = tc.currextra;
+    mine = catalog_mine;
+    strmemccpy(dir, tc.currdir, sizeof(dir));
+    if (same || back || global_settings.sort_by_hints >= SORT_BY_HINTS)
+        return;
+#ifdef HAVE_TAGCACHE
+    if (id3db ? !tagtree_sort_setting(&tc) : !catalog_viewed())
+        return;
+#else
+    if (!catalog_viewed())
+        return;
+#endif
+    global_settings.sort_by_hints++;
+    settings_save();
+    splash(0, ID2P(LANG_SORT_BY_HINT));
+    const long until = current_tick + 2 * HZ;
+    while (TIME_BEFORE(current_tick, until) && !button_queue_count())
+        sleep(HZ / 20);
+    gui_synclist_draw(list);
+}
+
 /*
  * Called when a new dir is loaded (for example when returning from other apps ...)
  * also completely redraws the tree
@@ -1031,7 +1056,7 @@ static int update_dir(void)
             tc.selected_item = tree_get_file_position(lastfile);
 
         /* If the file doesn't exists, select the first one (default); at
-           the catalogue's top, Unsynced, the first past Sort By */
+           the catalogue's top, Unsynced */
         if(tc.selected_item < 0)
         {
             tc.selected_item = 0;
@@ -1120,13 +1145,9 @@ static int update_dir(void)
        album's header, rows none selects too, whatever the album's discs */
     if (group_count() || album_rows)
         list->callback_is_group = tree_is_group;
-    /* and the catalogue's Sort By, its value at the right end */
-    if (group_count() || catalog_lead_of(LEAD_SORT_BY) >= 0)
+    if (group_count())
         list->callback_draw_item = menu_draw_value_line;
 #ifdef HAVE_TAGCACHE
-    /* a Sort By, its value at the right end as a setting's */
-    if (id3db && tagtree_has_sort_by(&tc))
-        list->callback_draw_item = menu_draw_value_line;
     /* an album's header, its songs' lengths in a column as wide as the
        longest's, if any has one, and its title as the header scrolls away */
     struct tagtree_album album;
@@ -1215,7 +1236,7 @@ static int update_dir(void)
     /* on a row before the entries if one is to be; back on On-The-Go,
        unless it was saved as a playlist, which the cursor goes to; on On
        This iPod if the entry is forgotten; or on the entry, or with none,
-       the first row past Sort By */
+       the first row */
     int row = catalog_select >= 0 ? catalog_lead_of(catalog_select) : -1;
     catalog_select = -1;
     if (row < 0 && catalog_otg && catalog_on_otg && !catalog_otg_empty)
@@ -1225,10 +1246,11 @@ static int update_dir(void)
     if (row < 0 && tc.filesindir > 0)
         row = row_of(tc.selected_item);
     if (row < 0)
-        row = catalog_lead > 1 && catalog_leads[0] == LEAD_SORT_BY ? 1 : 0;
+        row = 0;
     gui_synclist_select_item(list, row);
     gui_synclist_draw(list);
     gui_synclist_speak_item(list);
+    sort_hint(list, id3db);
     return tc.filesindir;
 }
 
@@ -1423,17 +1445,32 @@ void tree_select_after_reload(const char *path)
     reload_dir = true;
 }
 
+/* one of the menus a held Select opens on a row of the list open */
+static bool sort_menu_open;
+
 /* A held Select on a folder of the catalogue the iPod may change: Rename
    and Delete. False for USB. */
 static bool catalog_folder_menu(const char *path, const char *name)
 {
-    /* and Cancel last, as the other menus a held Select opens */
+    /* and the catalogue's Sort By, then Cancel last, as the other menus a
+       held Select opens. Menu in Sort By's choice back to it */
+    static char sort_row[64];
     MENUITEM_STRINGLIST(folder_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
                         onplay_cancel_callback,
-                        ID2P(LANG_RENAME), ID2P(LANG_DELETE), ID2P(LANG_CANCEL_0));
+                        ID2P(LANG_RENAME), ID2P(LANG_DELETE), sort_row,
+                        ID2P(LANG_CANCEL_0));
     char done[MAX_PATH];
-    int r = 0;
-    switch (do_menu(&folder_menu, NULL, NULL, false))
+    int r = 0, choice, selected = 0;
+    sort_menu_open = true;
+    do
+    {
+        snprintf(sort_row, sizeof(sort_row), "%s\t%s", str(LANG_SORT_BY),
+                 tree_sort_value());
+        choice = do_menu(&folder_menu, &selected, NULL, false);
+    }
+    while (choice == 2 && !onplay_sort_choose());
+    sort_menu_open = false;
+    switch (choice)
     {
         case 0:
             r = ip_rename(path, done, sizeof(done));
@@ -1503,16 +1540,74 @@ static bool catalog_opens_mine(const char *root, const char *rel)
     return (file_exists(path) || dir_exists(path)) && !ip_is_synced(path);
 }
 
-/* Playlists' Sort By selected: the other order, of each level; the cursor
-   back on each level above by its row's name */
-static void catalog_sort_switched(void)
+/* Playlists' Sort By chosen: that order, of each level; the cursor back on
+   each level above by its row's name, and on the row it was on: a lead by
+   its kind, On-The-Go, or an entry by its name */
+static void catalog_sort_chosen(int value)
 {
-    global_settings.playlists_sort = !global_settings.playlists_sort;
+    global_settings.playlists_sort = value;
     settings_save();
     for (int level = 0; level < tc.dirlevel && level < MAX_DIR_LEVELS; level++)
         tc.selected_item_history[level] = -1;
-    catalog_select = LEAD_SORT_BY;
+    const int row = gui_synclist_get_sel_pos(&tree_lists);
+    if (catalog_lead_row(row))
+        catalog_select = catalog_leads[row];
+    else if (!catalog_otg_row(row) && tc.filesindir > 0)
+    {
+        strmemccpy(lastfile, get_valid_entry(__func__, &tc, index_of(row))->name,
+                   MAX_PATH);
+        tc.selected_item = -1;
+    }
     reload_dir = true;
+}
+
+/* Sort By, in the menu a held Select opens on a row of a list with an order
+   to choose (onplay.c's, and the catalogue's own), while that's open
+   (sort_menu_open): the setting of Music's list's order
+   (tagtree_sort_setting()) or of Playlists', as the catalogue is viewed;
+   NULL elsewhere */
+int *tree_sort_setting(void)
+{
+    if (!sort_menu_open)
+        return NULL;
+#ifdef HAVE_TAGCACHE
+    if (*tc.dirfilter == SHOW_ID3DB)
+        return tagtree_sort_setting(&tc);
+#endif
+    return catalog_viewed() ? &global_settings.playlists_sort : NULL;
+}
+
+/* its value's name */
+const char *tree_sort_value(void)
+{
+#ifdef HAVE_TAGCACHE
+    if (*tc.dirfilter == SHOW_ID3DB)
+        return tagtree_sort_value(&tc);
+#endif
+    return str(global_settings.playlists_sort ? LANG_SORT_Z_A : LANG_SORT_A_Z);
+}
+
+/* an order chosen: the list loaded again in it, the row selected kept */
+void tree_sort_chosen(int value)
+{
+#ifdef HAVE_TAGCACHE
+    if (*tc.dirfilter == SHOW_ID3DB)
+    {
+        tagtree_sort_by_chosen(&tc, value);
+        reload_dir = true;
+        return;
+    }
+#endif
+    catalog_sort_chosen(value);
+}
+
+/* The catalogue's row with no menu of its own, Unsynced, On-The-Go or a
+   folder from the computer: Sort By and Cancel, by the row's name */
+static void catalog_sort_menu(const char *name)
+{
+    sort_menu_open = true;
+    onplay_sort_menu(name);
+    sort_menu_open = false;
 }
 
 /* Play on the selected row plays it, as on a stock iPod (Apple's guide:
@@ -1676,18 +1771,6 @@ static int dirbrowse(void)
                         return exit_to_new_screen(GO_TO_PLAYLISTS_SCREEN);
                     button = ACTION_NONE;
                 }
-                else if (customaction == ONPLAY_CUSTOMACTION_SORT_BY)
-                {
-                    /* Sort By, of Albums, Songs, All Songs, an artist's
-                       albums or Podcasts: the list again in the next order at
-                       once, its row still selected, as the rows over it stay */
-                    if (button == ACTION_STD_OK)
-                    {
-                        tagtree_sort_by_switched(&tc);
-                        reload_dir = true;
-                    }
-                    button = ACTION_NONE;
-                }
                 else if (customaction == ONPLAY_CUSTOMACTION_BOOK_RESUME)
                 {
                     /* Resume or Listen Again: as Select on the part it goes
@@ -1712,12 +1795,6 @@ static int dirbrowse(void)
             }
         #endif
 #ifdef HAVE_TAGCACHE
-#ifdef HAVE_HOTKEY
-        /* nothing to play or add on a Sort By */
-        if (id3db && button == ACTION_TREE_HOTKEY
-            && tagtree_get_custom_action(&tc) == ONPLAY_CUSTOMACTION_SORT_BY)
-            button = ACTION_NONE;
-#endif
         if (on_lead)
         {
             const int lead = catalog_leads[lead_row];
@@ -1727,11 +1804,6 @@ static int dirbrowse(void)
                 int r;
                 switch (lead)
                 {
-                    case LEAD_SORT_BY:
-                        /* the list again in the other order at once, its row
-                           still selected, as Albums' */
-                        catalog_sort_switched();
-                        break;
                     case LEAD_UNSYNCED:
                         catalog_mine = true;
                         tc.selected_item = 0;
@@ -1767,6 +1839,10 @@ static int dirbrowse(void)
                         break;
                 }
             }
+            /* a held Select on one of the catalogue viewed: its Sort By */
+            if (button == ACTION_STD_CONTEXT && catalog_viewed())
+                catalog_sort_menu(tree_get_filename(lead_row, &tc, buf,
+                                                    sizeof(buf)));
             /* Menu, Play, USB and the rest as on any row */
             if (button == ACTION_STD_OK || button == ACTION_STD_CONTEXT
 #ifdef HAVE_HOTKEY
@@ -1789,6 +1865,10 @@ static int dirbrowse(void)
 #endif
                 return exit_to_new_screen(GO_TO_PREVIOUS);
             }
+#ifdef HAVE_TAGCACHE
+            if (button == ACTION_STD_CONTEXT && catalog_viewed())
+                catalog_sort_menu(str(LANG_ON_THE_GO));
+#endif
             if (button == ACTION_STD_OK || button == ACTION_STD_CONTEXT
 #ifdef HAVE_HOTKEY
                 || button == ACTION_TREE_HOTKEY
@@ -1992,7 +2072,8 @@ static int dirbrowse(void)
                     break;
                 /* a folder of playlists has no songs of its own for Playing Next
                    and Add to Playlist: its menu, of one made on the iPod, has
-                   Rename and Delete */
+                   Rename and Delete; of one from the computer, Sort By alone,
+                   as the catalogue is viewed */
                 if (numentries && *tc.dirfilter == SHOW_M3U
                     && (get_valid_entry(__func__, &tc, tc.selected_item)->attr
                         & ATTR_DIRECTORY))
@@ -2004,13 +2085,19 @@ static int dirbrowse(void)
                     strmemccpy(name, entry->name, sizeof(name));
                     ft_assemble_path(buf, sizeof(buf), currdir, name);
                     if ((tc.browse->flags & BROWSE_ON_THE_GO)
-                        && ip_folder_editable(buf)
-                        && !catalog_folder_menu(buf, name))
-                        return exit_to_new_screen(GO_TO_ROOT);
+                        && ip_folder_editable(buf))
+                    {
+                        if (!catalog_folder_menu(buf, name))
+                            return exit_to_new_screen(GO_TO_ROOT);
+                    }
+                    else if (catalog_viewed())
+                        catalog_sort_menu(name);
 #endif
                     break;
                 }
 
+                /* the menu's Sort By of the list's order, while it's open */
+                sort_menu_open = !hotkey;
                 if(!numentries)
                     onplay_result = onplay(NULL, 0, curr_context, hotkey, customaction);
                 else {
@@ -2078,6 +2165,7 @@ static int dirbrowse(void)
                     }
                     onplay_result = onplay(buf, attr, curr_context, hotkey, customaction);
                 }
+                sort_menu_open = false;
                 switch (onplay_result)
                 {
                     case ONPLAY_MAINMENU:

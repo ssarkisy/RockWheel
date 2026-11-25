@@ -220,14 +220,15 @@ void tagtree_album_rows_check(void);
    and for each of a list in another order */
 const char *tagtree_entry_initial(struct tree_context *c, int row, char *buf,
                                   size_t size);
-/* the list has a Sort By, Albums', All Songs' or Songs', which is drawn as a
-   setting, with its value */
-bool tagtree_has_sort_by(struct tree_context *c);
-/* the row opens a list: not a song, nor Sort By, which switches in place */
+/* The list's order, Albums', Songs', Podcasts' shows', a person's albums' or
+   their All Songs', which Sort By in the menu of a held Select chooses: its
+   setting, NULL for a list without one; its value's name; and one chosen,
+   saved, the row selected kept as the caller loads the list again */
+int *tagtree_sort_setting(struct tree_context *c);
+const char *tagtree_sort_value(struct tree_context *c);
+void tagtree_sort_by_chosen(struct tree_context *c, int value);
+/* the row opens a list: not a song */
 bool tagtree_row_has_children(struct tree_context *c, int row);
-/* the list's Sort By chosen: its other order, saved, as the list is made
-   again */
-void tagtree_sort_by_switched(struct tree_context *c);
 /* The bars of groups among the list's songs, which aren't its entries: how
    many, the entry each is over, in their order, and the text of one */
 int tagtree_group_count(struct tree_context *c);

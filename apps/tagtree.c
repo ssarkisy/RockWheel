@@ -290,6 +290,7 @@ static int kept_tracks, kept_groups;
 static int32_t kept_untagged;
 static int kept_initials, kept_initials_tag;
 static int kept_shows;
+static int kept_sort;
 static bool kept_episodes;
 static int kept_artists;
 /* the rows of the list made are albums with their years */
@@ -327,6 +328,21 @@ static int32_t entries_untagged = -1;
 /* Podcasts' shows in two lines: how many struct show_sums are kept; 0
    otherwise */
 static int entries_shows;
+/* the list's own order, which Sort By in the menu of a held Select chooses
+   (tagtree_sort_setting()): of Albums, Songs, Podcasts' shows, a person's
+   albums or their All Songs; LIST_SORT_NONE for a list without one */
+enum { LIST_SORT_NONE, LIST_SORT_ALBUMS, LIST_SORT_SONGS, LIST_SORT_SHOWS,
+       LIST_SORT_PERSONS, LIST_SORT_ALL_SONGS };
+static int entries_sort;
+/* The row selected as the list was put in another order (Sort By): the same
+   album, song or show selected again as it's loaded in it (tagtree_load()),
+   by its seek and its album's number, or its seek alone */
+static struct {
+    bool on;
+    int dirlevel, table, extra;
+    int32_t seek;
+    int no;
+} sort_keep;
 /* a show's episodes: newest first, two lines, no covers */
 static bool entries_episodes;
 /* Artists' rows, or a genre's artists', in two lines with their covers, as
@@ -1013,6 +1029,7 @@ static void keep_list(struct tree_context *c, int count)
     kept_initials_tag = entries_initials_tag;
     kept_songs_by = entries_songs_by;
     kept_shows = entries_shows;
+    kept_sort = entries_sort;
     kept_episodes = entries_episodes;
     kept_artists = entries_artists ? entries_artists * 2 + entries_artists_solo
                                    : 0;
@@ -1039,6 +1056,7 @@ static int kept_list(struct tree_context *c)
     entries_initials_tag = kept_initials_tag;
     entries_songs_by = kept_songs_by;
     entries_shows = kept_shows; /* with their sums, kept in the names' room */
+    entries_sort = kept_sort;
     entries_episodes = kept_episodes;
     entries_artists = kept_artists / 2;
     entries_artists_solo = kept_artists & 1;
@@ -4207,6 +4225,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     entries_initials = INITIALS_NONE;
     entries_songs_by = -1;
     entries_shows = 0;
+    entries_sort = LIST_SORT_NONE;
     entries_episodes = false;
     entries_artists = 0;
     entries_artists_solo = false;
@@ -4275,8 +4294,8 @@ static int NO_INLINE make_list_entries(struct tree_context *c, int offset,
     /* Prevent duplicate entries in the search list. */
     tagcache_search_set_uniqbuf(&tcs, uniqbuf, UNIQBUF_SIZE);
 
-    /* Music > Albums, all of them in memory with their years: Sort By its
-       first row, and by their years if so */
+    /* Music > Albums, all of them in memory with their years: in its Sort
+       By's order, and by their years if so */
     bool albums = offset == 0 && level == 0 && tag == tag_album
         && c->currtable == TABLE_NAVIBROWSE && is_albums(csi)
         && album_years_ready() && tcs.ramsearch
@@ -4378,47 +4397,18 @@ static int NO_INLINE make_list_entries(struct tree_context *c, int offset,
     counting.end = (struct show_sums *)song_groups(c);
 
     /* no <All tracks>, <By album> or <Random> entries in the lists: as on a
-       stock iPod, the Music menu has Songs instead. Albums' Sort By first */
+       stock iPod, the Music menu has Songs instead. Albums' order chosen by
+       Sort By in the menu of a held Select, no row of the list */
     if (albums)
-    {
-        dptr->name = ID2P(LANG_SORT_BY);
-        dptr->newtable = TABLE_NAVIBROWSE;
-        dptr->extraseek = -2; /* not <Random>'s */
-        dptr->customaction = ONPLAY_CUSTOMACTION_SORT_BY;
-        dptr->album.year = 0;
-        dptr->album.no = -1;
-        dptr++;
-        current_entry_count++;
-        c->special_entry_count++;
-    }
+        entries_sort = LIST_SORT_ALBUMS;
     /* and Songs', its rows its titles alone, not in a format's own order,
        which another has no list for (below) */
     const bool songs = offset == 0 && level == 0 && tag == tag_title
         && c->currtable == TABLE_NAVIBROWSE && is_songs(csi) && plain
         && !sort_inverse && !sort_limit && tcs.ramsearch && songs_sortable();
-    if (songs)
-    {
-        *dptr++ = (struct tagentry){
-            .name = ID2P(LANG_SORT_BY), .newtable = TABLE_NAVIBROWSE,
-            .extraseek = -2, .customaction = ONPLAY_CUSTOMACTION_SORT_BY,
-            .album = { .year = 0, .no = -1 }
-        };
-        current_entry_count++;
-        c->special_entry_count++;
-    }
-    /* and Podcasts', over the shows, which their sums order by their newest
-       episodes: taken off again below without all of them (shows_sorted) */
+    /* and Podcasts' shows', which their sums order by their newest
+       episodes: with all of them (shows_sorted, below) */
     const bool shows_sort = shows && !books;
-    if (shows_sort)
-    {
-        *dptr++ = (struct tagentry){
-            .name = ID2P(LANG_SORT_BY), .newtable = TABLE_NAVIBROWSE,
-            .extraseek = -2, .customaction = ONPLAY_CUSTOMACTION_SORT_BY,
-            .album = { .year = 0, .no = -1 }
-        };
-        current_entry_count++;
-        c->special_entry_count++;
-    }
     /* past the songs of the parts before, in their rows after those at the
        top */
     const int skip = offset > 0 ? offset - special_before : 0;
@@ -4578,8 +4568,8 @@ static int NO_INLINE make_list_entries(struct tree_context *c, int offset,
         }
     }
 
-    /* Songs by its Sort By; by name without the row, whatever the order
-       chosen, in chunks or without room for the sort, which the lists' size
+    /* Songs by its Sort By; by name without it, whatever the order chosen,
+       in chunks or without room for the sort, which the lists' size
        decides: list_hash() has it */
     int songs_by = SONGS_BY_NAME;
     bool songs_whole = false; /* with its Sort By */
@@ -4589,15 +4579,8 @@ static int NO_INLINE make_list_entries(struct tree_context *c, int offset,
             : songs_sort_room(c, current_entry_count - c->special_entry_count,
                               namebufused);
         songs_whole = keys != NULL;
-        if (!keys)
-        {
-            struct tagentry *entries = get_entries(c);
-            const int row = c->special_entry_count - 1;
-            memmove(&entries[row], &entries[row + 1],
-                    (current_entry_count - row - 1) * sizeof(*entries));
-            current_entry_count--;
-            c->special_entry_count--;
-        }
+        if (songs_whole)
+            entries_sort = LIST_SORT_SONGS;
         else
         {
             /* all found: a press or a held event that stops the search
@@ -4650,14 +4633,15 @@ static int NO_INLINE make_list_entries(struct tree_context *c, int offset,
         }
         entries_years = true;
     }
-    /* and with their years, two albums or more, Sort By atop them, over All
-       Songs (below), with room for both rows. By name, its other order: by
-       their places in the album tag's file, which Updating Library sorted,
-       as Albums by name has them; the years kept for their second lines, and
-       not before their names in one line, nor Quick Scroll's */
+    /* and with their years, two albums or more, their Sort By. By name, its
+       other order: by their places in the album tag's file, which Updating
+       Library sorted, as Albums by name has them; the years kept for their
+       second lines, and not before their names in one line, nor Quick
+       Scroll's */
     const bool persons_sort = persons && entries_years
-        && current_entry_count - c->special_entry_count >= 2
-        && current_entry_count + 2 <= c->cache.max_entries;
+        && current_entry_count - c->special_entry_count >= 2;
+    if (persons_sort)
+        entries_sort = LIST_SORT_PERSONS;
     if (persons_sort && persons_by_name())
         entries_years = false;
     /* Shows in two lines if all were counted and the sums still fit: sums'
@@ -4695,17 +4679,10 @@ static int NO_INLINE make_list_entries(struct tree_context *c, int offset,
         }
     }
     /* Podcasts' Sort By with every show's sums, which its other order is
-       made of; without them, the shows in one line by name, and no row */
+       made of; without them, the shows in one line by name, and none */
     const bool shows_sorted = shows_sort && entries_shows > 0;
-    if (shows_sort && !shows_sorted)
-    {
-        struct tagentry *entries = get_entries(c);
-        const int row = c->special_entry_count - 1;
-        memmove(&entries[row], &entries[row + 1],
-                (current_entry_count - row - 1) * sizeof(*entries));
-        current_entry_count--;
-        c->special_entry_count--;
-    }
+    if (shows_sorted)
+        entries_sort = LIST_SORT_SHOWS;
     /* Albums in two lines, as Artists in Albums or Covers in Lists has them:
        each row's album, the first of its name, and the name's year; with
        Artists in Albums, each album of a name several album artists have a
@@ -4954,7 +4931,6 @@ static int NO_INLINE make_list_entries(struct tree_context *c, int offset,
        top. Not if they are more than its list can gather in half the lists'
        room, with a row to spare at its top; nor over albums with no list
        below them */
-    const int persons_top = c->special_entry_count;
     if (persons && !c->dirfull
         && current_entry_count - c->special_entry_count >= 2
         && persons_songs < c->cache.max_entries / 2
@@ -4966,29 +4942,13 @@ static int NO_INLINE make_list_entries(struct tree_context *c, int offset,
                 (current_entry_count - top) * sizeof(*entries));
         entries[top] = (struct tagentry){
             .name = ID2P(LANG_ALL_SONGS), .newtable = TABLE_ALLSUBENTRIES,
-            .extraseek = -3, /* not <Random>'s, nor Sort By's */
+            .extraseek = -3, /* not <Random>'s */
             .customaction = ONPLAY_NO_CUSTOMACTION,
             .album = { .year = YEAR_LAST, .no = -1 }
         };
         c->special_entry_count++;
         current_entry_count++;
     }
-    /* and the albums' Sort By over it, Select switching it in place, as
-       Playlists' */
-    if (persons_sort)
-    {
-        struct tagentry *entries = get_entries(c);
-        memmove(&entries[persons_top + 1], &entries[persons_top],
-                (current_entry_count - persons_top) * sizeof(*entries));
-        entries[persons_top] = (struct tagentry){
-            .name = ID2P(LANG_SORT_BY), .newtable = TABLE_NAVIBROWSE,
-            .extraseek = -2, .customaction = ONPLAY_CUSTOMACTION_SORT_BY,
-            .album = { .year = 0, .no = -1 }
-        };
-        c->special_entry_count++;
-        current_entry_count++;
-    }
-
     /* Artists' rows with their covers, as Artist Covers has them, from the
        table Updating Library made: each one's cover's album, the note for
        Unknown Artist's, and under the name their albums and songs
@@ -5137,7 +5097,7 @@ static int load_root(struct tree_context *c)
 
     tc = c;
     c->currtable = TABLE_ROOT;
-    c->special_entry_count = 0; /* Albums' Sort By, if it was there */
+    c->special_entry_count = 0;
     if (c->dirlevel == 0)
         c->currextra = rootmenu;
 
@@ -5229,10 +5189,9 @@ static int load_root(struct tree_context *c)
 static bool open_at_first_row;
 
 /* The row a list opens at, with none left in it to go back to: its first
-   song, album or artist, past the rows at its top, Sort By or All Songs, a
-   step up from it and in sight (the owner's decision, 2026-11-08): an
-   artist's first album, All Songs' first song, and Albums' first album
-   rather than its Sort By */
+   song, album or artist, past the rows at its top, as All Songs, a step up
+   from it and in sight (the owner's decision, 2026-11-08): an artist's first
+   album, All Songs' first song, and Albums' first album */
 static int first_row(struct tree_context *c)
 {
     /* a book's screen opens on its Resume or Listen Again, the row over its
@@ -5341,6 +5300,30 @@ int tagtree_load(struct tree_context* c)
             c->selected_item = MAX(row, 0);
         }
         artists_copy_left[0] = '\0';
+    }
+
+    /* the row selected before the list was put in another order */
+    if (sort_keep.on)
+    {
+        sort_keep.on = false;
+        int seek_row = -1;
+        for (int row = c->special_entry_count;
+             c->dirlevel == sort_keep.dirlevel && c->currtable == sort_keep.table
+             && c->currextra == sort_keep.extra && row < c->filesindir; row++)
+        {
+            const struct tagentry *entry = tagtree_get_entry(c, row);
+            if (!entry || entry->extraseek != sort_keep.seek)
+                continue;
+            if (seek_row < 0)
+                seek_row = row;
+            if (entry->album.no == sort_keep.no)
+            {
+                seek_row = row;
+                break;
+            }
+        }
+        if (seek_row >= 0)
+            c->selected_item = seek_row;
     }
 
     return count;
@@ -5741,7 +5724,7 @@ static void kept_place_read(void)
 static int tagtree_find_row(struct tree_context *c, const char *name)
 {
     const bool untagged = !strcmp(name, UNTAGGED);
-    /* past Sort By and All Songs, whose names are phrases' numbers */
+    /* past All Songs, whose name is a phrase's number */
     for (int i = c->special_entry_count; i < c->dirlength; i++)
     {
         /* got first: a part of a list in chunks finds its seek. A tag with
@@ -6386,8 +6369,7 @@ int tagtree_enter(struct tree_context* c, bool is_visible)
     bool adjust_selection = true;
 
     dptr = tagtree_get_entry(c, c->selected_item);
-    /* a Sort By, which switches the order: into nothing */
-    if (!dptr || dptr->customaction == ONPLAY_CUSTOMACTION_SORT_BY)
+    if (!dptr)
         return 0;
 
     c->dirfull = false;
@@ -6827,20 +6809,34 @@ static void songs_place_reset(struct tagtree_place *place)
         place->selected_item = -1;
 }
 
-void tagtree_sort_by_switched(struct tree_context *c)
+/* Sort By's order chosen in the menu of a held Select: the list's setting
+   (tagtree_sort_setting()) set to it, the places in lists put in another
+   order by it forgotten; the list then loaded again by the caller */
+void tagtree_sort_by_chosen(struct tree_context *c, int value)
 {
-    if (c->currtable == TABLE_ALLSUBENTRIES)
+    const struct tagentry *entry = c->selected_item >= c->special_entry_count
+        ? tagtree_get_entry(c, c->selected_item) : NULL;
+    sort_keep.on = entry != NULL;
+    if (entry)
     {
-        global_settings.all_songs_sort = !global_settings.all_songs_sort;
+        sort_keep.dirlevel = c->dirlevel;
+        sort_keep.table = c->currtable;
+        sort_keep.extra = c->currextra;
+        sort_keep.seek = entry->extraseek;
+        sort_keep.no = entry->album.no;
+    }
+    if (entries_sort == LIST_SORT_ALL_SONGS)
+    {
+        global_settings.all_songs_sort = value;
         all_songs_place_reset(&saved_place);
         all_songs_place_reset(&go_to_place);
         all_songs_place_reset(&browse_place);
         all_songs_place_reset(&played_place);
         all_songs_place_reset(&left_place);
     }
-    else if (is_songs(csi))
+    else if (entries_sort == LIST_SORT_SONGS)
     {
-        global_settings.songs_sort = (songs_setting() + 1) % (SONGS_BY_YEAR + 1);
+        global_settings.songs_sort = value;
         songs_place_reset(&saved_place);
         songs_place_reset(&go_to_place);
         songs_place_reset(&browse_place);
@@ -6850,12 +6846,11 @@ void tagtree_sort_by_switched(struct tree_context *c)
         if (section >= 0)
             section_rows[section] = -1;
     }
-    else if (persons_list(csi, c->currtable, c->currextra))
+    else if (entries_sort == LIST_SORT_PERSONS)
     {
         /* every artist's albums in the other order: a place in one, or
            below it, at its first row; the rows below this list forgotten */
-        global_settings.artist_albums_sort =
-            persons_by_name() ? PERSONS_BY_YEAR : PERSONS_BY_NAME;
+        global_settings.artist_albums_sort = value;
         max_history_level = MIN(max_history_level, c->dirlevel);
         place_reorder_reset(&saved_place, persons_list);
         place_reorder_reset(&go_to_place, persons_list);
@@ -6863,10 +6858,9 @@ void tagtree_sort_by_switched(struct tree_context *c)
         place_reorder_reset(&played_place, persons_list);
         place_reorder_reset(&left_place, persons_list);
     }
-    else if (podcasts_shows(csi, c->currtable, c->currextra))
+    else if (entries_sort == LIST_SORT_SHOWS)
     {
-        global_settings.podcasts_sort =
-            shows_by_newest() ? SHOWS_BY_NAME : SHOWS_BY_NEWEST;
+        global_settings.podcasts_sort = value;
         max_history_level = MIN(max_history_level, c->dirlevel);
         const int section = section_of(LANG_PODCASTS);
         if (section >= 0)
@@ -6877,9 +6871,9 @@ void tagtree_sort_by_switched(struct tree_context *c)
         place_reorder_reset(&played_place, podcasts_shows);
         place_reorder_reset(&left_place, podcasts_shows);
     }
-    else
+    else if (entries_sort == LIST_SORT_ALBUMS)
     {
-        global_settings.albums_sort = (albums_setting() + 1) % (ALBUMS_BY_ARTIST + 1);
+        global_settings.albums_sort = value;
         /* below the list, the rows left there are of other albums now */
         max_history_level = MIN(max_history_level, c->dirlevel);
         const int section = section_of(LANG_ALBUMS);
@@ -7316,7 +7310,7 @@ static bool goto_allsubentries(int newtable)
     {
         tagtree_enter(tc, false);
         tagtree_load(tc);
-        /* its first row past those at the top, as a Sort By */
+        /* its first row past those at the top, as All Songs */
         tc->selected_item = tc->special_entry_count;
         if (tc->selected_item >= tc->filesindir)
             return false;
@@ -7676,7 +7670,7 @@ static int album_groups(struct tree_context *c, struct tagcache_search *tcs,
 }
 
 /* All Songs: the songs of the artist's row at level extra of the search, as
-   gather_songs() has them, under a row of their own, Sort By. Each by its
+   gather_songs() has them, in the order of its Sort By. Each by its
    title alone, as in an album, and a song without one by its file's name. By
    album, with their numbers as the songs go album by album, and the bars of
    album_groups(), as the database's memory has their discs; by name, A to Z
@@ -7701,7 +7695,7 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
         return -1;
     }
     const bool by_name = global_settings.all_songs_sort != 0;
-    const int first = 1; /* past Sort By */
+    const int first = 0;
     struct tagentry *entries = get_entries(c);
     char *names = core_get_data(c->cache.name_buffer_handle);
     long used = 0;
@@ -7755,11 +7749,6 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
             used = 0;
         }
     }
-    entries[first - 1] = (struct tagentry){
-        .name = ID2P(LANG_SORT_BY), .newtable = TABLE_NAVIBROWSE,
-        .extraseek = -2, /* not <Random>'s */
-        .customaction = ONPLAY_CUSTOMACTION_SORT_BY
-    };
     /* in the names' room, up to the bars, 80 bytes for each of the most songs
        there are: a row past it, which titles of twice the usual length would
        take, has no name rather than the list fewer rows */
@@ -7804,6 +7793,7 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
     c->dirfull = false;
     entries_tracks = digits;
     entries_groups = groups;
+    entries_sort = LIST_SORT_ALL_SONGS;
     entries_untagged = -1;
     /* by name, by their titles' places or else by their names, as they could
        be sorted */
@@ -9128,11 +9118,11 @@ static struct tagentry* tagtree_get_entry(struct tree_context *c, int id)
     return &entry[realid];
 }
 
-/* A name in a list drawn as settings are, with a Sort By or bars among its
-   rows: a tab in it would cut it there */
+/* A name in a list drawn as settings are, with bars among its rows: a tab
+   in it would cut it there */
 static void tabs_to_spaces(struct tree_context *c, char *name)
 {
-    if (!tagtree_has_sort_by(c) && !tagtree_group_count(c))
+    if (!tagtree_group_count(c))
         return;
     for (char *tab = strchr(name, '\t'); tab; tab = strchr(tab, '\t'))
         *tab = ' ';
@@ -9144,34 +9134,6 @@ char* tagtree_get_entry_name(struct tree_context *c, int id,
     struct tagentry *entry = tagtree_get_entry(c, id);
     if (!entry)
         return NULL;
-
-    /* Sort By, as a setting with its value at the right end: of Albums,
-       Year, Name or Artist, of All Songs, Album or Name, of Songs, one of
-       four, of an artist's albums, Year or Name, of Podcasts, A-Z or Newest
-       Episode */
-    if (entry->customaction == ONPLAY_CUSTOMACTION_SORT_BY)
-    {
-        static const int songs_values[] = {
-            [SONGS_BY_NAME] = LANG_SORT_NAME, [SONGS_BY_ARTIST] = LANG_SORT_ARTIST,
-            [SONGS_BY_ALBUM] = LANG_SORT_ALBUM, [SONGS_BY_YEAR] = LANG_SORT_YEAR,
-        };
-        static const int albums_values[] = {
-            [ALBUMS_BY_YEAR] = LANG_SORT_YEAR, [ALBUMS_BY_NAME] = LANG_SORT_NAME,
-            [ALBUMS_BY_ARTIST] = LANG_SORT_ARTIST,
-        };
-        const bool all_songs = c->currtable == TABLE_ALLSUBENTRIES;
-        int value = all_songs ? (global_settings.all_songs_sort ?
-                                 LANG_SORT_NAME : LANG_SORT_ALBUM)
-                              : albums_values[albums_setting()];
-        if (!all_songs && is_songs(csi))
-            value = songs_values[songs_setting()];
-        else if (persons_list(csi, c->currtable, c->currextra))
-            value = persons_by_name() ? LANG_SORT_NAME : LANG_SORT_YEAR;
-        else if (podcasts_shows(csi, c->currtable, c->currextra))
-            value = shows_by_newest() ? LANG_SORT_NEWEST_EPISODE : LANG_SORT_A_Z;
-        snprintf(buf, bufsize, "%s\t%s", str(LANG_SORT_BY), str(value));
-        return buf;
-    }
 
     /* a book in one file: its row is Play, Resume or Listen Again */
     if (c->currtable != TABLE_ROOT && entries_parts.parts == 1
@@ -9227,15 +9189,51 @@ char *tagtree_get_title(struct tree_context* c)
     return "?";
 }
 
-bool tagtree_has_sort_by(struct tree_context *c)
+/* The list's order, which Sort By in the menu of a held Select chooses:
+   its setting, NULL for a list without one */
+int *tagtree_sort_setting(struct tree_context *c)
 {
-    for (int row = 0; row < c->special_entry_count; row++)
+    (void)c;
+    switch (entries_sort)
     {
-        if (tagtree_get_entry(c, row)->customaction
-            == ONPLAY_CUSTOMACTION_SORT_BY)
-            return true;
+        case LIST_SORT_ALBUMS:    return &global_settings.albums_sort;
+        case LIST_SORT_SONGS:     return &global_settings.songs_sort;
+        case LIST_SORT_SHOWS:     return &global_settings.podcasts_sort;
+        case LIST_SORT_PERSONS:   return &global_settings.artist_albums_sort;
+        case LIST_SORT_ALL_SONGS: return &global_settings.all_songs_sort;
+        default:                  return NULL;
     }
-    return false;
+}
+
+/* and its value, as Sort By's row shows it: of Albums, Year, Name or
+   Artist, of All Songs, Album or Name, of Songs, one of four, of an
+   artist's albums, Year or Name, of Podcasts, A-Z or Newest Episode */
+const char *tagtree_sort_value(struct tree_context *c)
+{
+    static const int songs_values[] = {
+        [SONGS_BY_NAME] = LANG_SORT_NAME, [SONGS_BY_ARTIST] = LANG_SORT_ARTIST,
+        [SONGS_BY_ALBUM] = LANG_SORT_ALBUM, [SONGS_BY_YEAR] = LANG_SORT_YEAR,
+    };
+    static const int albums_values[] = {
+        [ALBUMS_BY_YEAR] = LANG_SORT_YEAR, [ALBUMS_BY_NAME] = LANG_SORT_NAME,
+        [ALBUMS_BY_ARTIST] = LANG_SORT_ARTIST,
+    };
+    (void)c;
+    switch (entries_sort)
+    {
+        case LIST_SORT_ALBUMS:
+            return str(albums_values[albums_setting()]);
+        case LIST_SORT_SONGS:
+            return str(songs_values[songs_setting()]);
+        case LIST_SORT_SHOWS:
+            return str(shows_by_newest() ? LANG_SORT_NEWEST_EPISODE : LANG_SORT_A_Z);
+        case LIST_SORT_PERSONS:
+            return str(persons_by_name() ? LANG_SORT_NAME : LANG_SORT_YEAR);
+        case LIST_SORT_ALL_SONGS:
+            return str(global_settings.all_songs_sort ? LANG_SORT_NAME : LANG_SORT_ALBUM);
+        default:
+            return "";
+    }
 }
 
 bool tagtree_row_has_children(struct tree_context *c, int row)

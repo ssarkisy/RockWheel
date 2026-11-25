@@ -29,7 +29,6 @@ enum onplay_custom_action {
     ONPLAY_CUSTOMACTION_PLAYLISTS,
     ONPLAY_CUSTOMACTION_COVERFLOW,
     ONPLAY_CUSTOMACTION_SEARCH,
-    ONPLAY_CUSTOMACTION_SORT_BY, /* the Sort By of Music's lists */
     ONPLAY_CUSTOMACTION_BOOK_RESUME, /* a book's Resume or Listen Again */
 };
 
@@ -114,6 +113,13 @@ int onplay_cancel_row(int action, struct gui_synclist *list);
 int onplay_cancel_callback(int action, const struct menu_item_ex *this_item,
                            struct gui_synclist *this_list);
 int get_onplay_context(void);
+/* Sort By's choice of the orders of the list a held Select's menu was opened
+   in (tree_sort_setting()), the one it has checked: true with one chosen,
+   the list then loaded again in it (tree_sort_chosen()), false for Menu */
+bool onplay_sort_choose(void);
+/* a menu of Sort By and Cancel alone, for a row of such a list with no menu
+   of its own; title its name */
+void onplay_sort_menu(const char *title);
 
 /* needed for the playlist viewer.. eventually clean this up */
 void onplay_show_playlist_cat_menu(const char* track_name, int attr,
