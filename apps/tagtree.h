@@ -187,9 +187,9 @@ const char *tagtree_entry_lead(struct tree_context *c, int row, char *buf,
    album artist, as Albums has them with Artists in Albums, and with their
    covers, with Covers in Lists (list_covers.h) in any list of albums: the
    list made last has them. A row's second line written to buf, or NULL for a
-   row of one line, as Sort By; and its album by its number in the table of
-   years (album_years.h), whose cover it shows: -1 for the note, as Unknown
-   Album, -2 for a row without a cover, as Sort By */
+   row of one line, as All Songs; and its album by its number in the table
+   of years (album_years.h), whose cover it shows: -1 for the note, as
+   Unknown Album, -2 for a row without a cover, as All Songs */
 bool tagtree_rows_two_lines(struct tree_context *c);
 /* what the list says when it has no rows, "No Composers": a phrase, or NULL */
 const unsigned char *tagtree_empty_text(struct tree_context *c);

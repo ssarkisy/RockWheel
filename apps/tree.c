@@ -471,7 +471,7 @@ static const char *tree_get_subline(int selected_item, void *data, char *buf,
 
 /* and its cover at its left, or the note in its place; a person's All Songs
    a collage of the albums under it, as a playlist's row; none for a row that
-   isn't an album's, as Sort By */
+   isn't an album's */
 #define ALL_SONGS_LOOKS 16 /* the albums looked at for its collage's four */
 static int tree_get_cover(int selected_item, void *data, const fb_data **pixels)
 {

@@ -349,9 +349,9 @@ extern int list_scrollbar_room(struct gui_synclist *list, int rows);
    line's, in its font (list_two_lines_height()); and their covers */
 extern void gui_synclist_set_subline_callback(struct gui_synclist * lists,
         const char *(*get_subline)(int item, void *data, char *buf, size_t size));
-/* what a row has in the column of covers: nothing, as Sort By, which has no
-   column; the note, as an album without a cover or with one not read yet;
-   or its cover */
+/* what a row has in the column of covers: nothing, as a list's heading,
+   which has no column; the note, as an album without a cover or with one not
+   read yet; or its cover */
 enum list_cover { LIST_COVER_NONE, LIST_COVER_NOTE, LIST_COVER_PIXELS,
                   /* its picture isn't shown: the "?" (cover_caution.h) */
                   LIST_COVER_UNSUPPORTED,

@@ -5570,10 +5570,12 @@ bool tagtree_go_to_is_open(bool kept, int floor)
    USB is connected, not as music starts, which it would make wait: its
    pointers as the menus' and searches' numbers */
 #define KEPT_PLACE_FILE  ROCKBOX_DIR "/tagtree_from.dat"
-/* "RWF3": the rows of a file from before would be one off, without the Sort
-   By rows over an artist's albums and Podcasts' shows (and, before "RWF2",
-   with Shuffle Songs at the lists' tops) */
-#define KEPT_PLACE_MAGIC 0x33465752
+/* "RWF4": the rows of a file from before would be one off, with the Sort By
+   rows atop Albums, Songs, an artist's albums, their All Songs and
+   Podcasts' shows, which the menu of a held Select has now (before "RWF3",
+   without them over an artist's albums and Podcasts' shows, and before
+   "RWF2", with Shuffle Songs at the lists' tops) */
+#define KEPT_PLACE_MAGIC 0x34465752
 struct kept_place {
     uint32_t magic;
     uint32_t size;          /* of the place, as this build has it */
@@ -7154,7 +7156,7 @@ static bool insert_all_playlist(struct tree_context *c,
 
     last_tick = current_tick + HZ/2; /* Show splash after 0.5 seconds have passed */
     splash_progress_set_delay(HZ / 2); /* wait 1/2 sec before progress */
-    /* the songs, past the rows at the top, as All Songs' Sort By */
+    /* the songs, past any rows at the top */
     const int first = c->special_entry_count;
     n = c->filesindir - first;
 
@@ -7884,7 +7886,7 @@ bool tagtree_entries_iterate(struct tagcache_search *tcs,
     {
         last_tick = current_tick + HZ/2;
         splash_progress_set_delay(HZ / 2); /* wait 1/2 sec before progress */
-        /* the songs, past the rows at the top, as All Songs' Sort By */
+        /* the songs, past any rows at the top */
         const int first = tc->special_entry_count;
         n = tc->filesindir - first;
         for (i = 0; i < n; i++)
@@ -8901,8 +8903,8 @@ static int tagtree_play_folder(struct tree_context* c)
 /* Play on a row of Music's lists plays it, as on a stock iPod (Apple's
    guide: "select it and press Play/Pause"): a song, and a book's Resume or
    Listen Again, as Select there; a row of songs, as an album, an artist, a
-   genre, a show or a book, those. Not Music's own rows, a Sort By, nor the
-   song playing of this list, where Play pauses and goes on as anywhere */
+   genre, a show or a book, those. Not Music's own rows, nor the song
+   playing of this list, where Play pauses and goes on as anywhere */
 bool tagtree_row_plays(struct tree_context *c, int row)
 {
     if (!c || c->currtable == TABLE_ROOT || !csi || row < 0
