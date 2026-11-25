@@ -1008,6 +1008,7 @@ static const struct plugin_api rockbox_api = {
 #ifdef HAVE_TAGCACHE
     root_menu_cover_flow_left,
 #endif
+    buf_hold_fill,
 };
 
 static int plugin_buffer_handle;

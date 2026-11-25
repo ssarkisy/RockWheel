@@ -112,6 +112,14 @@ size_t buf_used(void);
 void buf_set_base_handle(int handle_id);
 void buf_set_watermark(size_t bytes);
 size_t buf_get_watermark(void);
+/* The buffer's filling ahead held off for so many ticks, two seconds at most,
+   as a screen that reads the disk opens (Cover Flow); 0 ends it. Only while
+   the audio buffered ahead plays out the rest of the hold with a second to
+   spare at a high rate, 24-bit 192 kHz PCM: below that it fills as usual,
+   so that a faster stream is covered too, with that much still ahead. What
+   a reader waits for (bufread()'s or bufgetdata()'s request, a seek's or a
+   rebuffer's) is read at once all the same. */
+void buf_hold_fill(long ticks);
 
 /* Debugging */
 struct buffering_debug {

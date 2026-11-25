@@ -86,6 +86,7 @@
 #endif
 #include "language.h"
 #include "plugin.h"
+#include "buffering.h"
 #include "disk.h"
 #include "backlight.h"
 #include "icons.h"
@@ -385,6 +386,8 @@ void root_menu_cover_flow_left(const char *state)
 }
 
 #ifdef HAVE_TAGCACHE
+#define COVER_FLOW_HOLD (2 * HZ) /* buf_hold_fill() as it opens, at most */
+
 /* Cover Flow, its entry the top one: at the album playing, or with its state
    as it was left (root_menu_cover_flow_left()). Its Go to Artist is the
    lists' entry over it */
@@ -395,7 +398,13 @@ static int cover_flow(const char *at)
     ui_theme_set_section(UI_SECTION_MUSIC, false);
     cover_flow_go_to[0] = '\0';
     cover_flow_go_to_offered = true;
+    /* The music's buffer not filled ahead as it opens, until its first
+       frame or two seconds end the hold: waiting between the buffer's
+       chunks, the plugin's load, its album index and its covers took two to
+       three times as long on the iPod. Ended here too, however it returned */
+    buf_hold_fill(COVER_FLOW_HOLD);
     const int ret = plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", at);
+    buf_hold_fill(0);
     cover_flow_go_to_offered = false;
     /* music started there is Cover Flow's, not the lists' it was
        opened over (note_music_origin()) */

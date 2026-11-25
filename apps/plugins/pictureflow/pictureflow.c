@@ -6753,12 +6753,25 @@ static void draw_album_text(void)
     }
 }
 
+/* The first frame on the screen: the music's buffer, not filled ahead while
+   this opened (the core's cover_flow(), buf_hold_fill()), fills again */
+static bool fill_resumed;
+static void first_frame_shown(void)
+{
+    if (!fill_resumed)
+    {
+        fill_resumed = true;
+        rb->buf_hold_fill(0);
+    }
+}
+
 /**
   Display an error message and wait for input.
 */
 static void error_wait(const char *message)
 {
     pf_boost(false);
+    first_frame_shown(); /* the message is its first frame */
     rb->splashf(0, "%s. Press any button to continue.", message);
     while (rb->get_action(CONTEXT_STD, 1) == ACTION_NONE)
         rb->yield();
@@ -6773,6 +6786,7 @@ static bool init(void)
 
     rb->memset(&cf_marks, 0, sizeof(cf_marks));
     cf_marks.opened_at = *rb->current_tick;
+    fill_resumed = false;
     /* while it opens; then the main loop's, as the covers move */
     pf_boost(true);
 
@@ -7773,11 +7787,15 @@ static int pictureflow_main(void)
                 /* the COP shows it as the next is drawn in the other */
                 shown_later = buffer;
                 buffer = buffer == LCD_BUF ? frame_other : LCD_BUF;
+                first_frame_shown();
             }
             else
 #endif
             if (is_initial_slide == false && !frames_held())
+            {
                 mylcd_update();
+                first_frame_shown();
+            }
         }
 #if CARD_FRAME_COUNT > 0
         else

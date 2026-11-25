@@ -97,6 +97,7 @@ struct memory_handle {
     off_t   start;          /* Offset at which we started reading the file */
     off_t   pos;            /* Read position in file */
     off_t volatile end;     /* Offset at which we stopped reading the file */
+    off_t volatile wanted;  /* The end a reader waited for (prep_bufdata()) */
     char    path[];         /* Path if data originated in a file */
 };
 
@@ -150,7 +151,22 @@ static struct data_counters
     size_t remaining;   /* Amount of data needing to be buffered */
     size_t buffered;    /* Amount of data currently in the buffer */
     size_t useful;      /* Amount of data still useful to the user */
+    size_t audio;       /* Of that, the streamed audio's (TYPE_PACKET_AUDIO) */
 } data_counters;
+
+/* The filling ahead held off until hold_until (buf_hold_fill()), as long as
+   the audio buffered ahead plays that long and HOLD_SPARE_TICKS more at
+   HOLD_BYTES_PER_SEC, a high rate: PCM of 24 bits at 192 kHz, stereo. So is
+   a faster stream, as 32-bit or float PCM or one sped up: the hold gives way
+   while a second of that rate, 1.15 MB, is still ahead, and the disk fills
+   the buffer faster than any stream it can keep up with empties it. */
+#define HOLD_BYTES_PER_SEC  (192000 * 3 * 2)
+#define HOLD_SPARE_TICKS    HZ
+#define HOLD_MAX_TICKS      (2 * HZ)
+static volatile bool hold_on;
+static volatile long hold_until;
+/* buffer_handle() stopped by the hold, with the handle not yet in */
+static bool fill_stopped_by_hold;
 
 
 /* Messages available to communicate with the buffering thread */
@@ -417,6 +433,7 @@ add_handle(unsigned int flags, size_t data_size, const char *path,
     h->flags    = flags;
     h->pinned   = 0; /* Can be moved */
     h->signaled = 0; /* Data can be waited for */
+    h->wanted   = 0;
 
     /* Save the provided path */
     if (path)
@@ -588,6 +605,7 @@ static int update_data_counters(struct data_counters *dc)
     size_t buffered  = 0;
     size_t remaining = 0;
     size_t useful    = 0;
+    size_t audio     = 0;
 
     if (dc == NULL)
         dc = &data_counters;
@@ -610,7 +628,11 @@ static int update_data_counters(struct data_counters *dc)
             is_useful = true;
 
         if (is_useful)
+        {
             useful += end - pos;
+            if (m->type == TYPE_PACKET_AUDIO)
+                audio += end - pos;
+        }
     }
 
     mutex_unlock(&llist_mutex);
@@ -618,15 +640,46 @@ static int update_data_counters(struct data_counters *dc)
     dc->buffered  = buffered;
     dc->remaining = remaining;
     dc->useful    = useful;
+    dc->audio     = audio;
 
     return num;
 }
 
+/* On the buffering thread, its counters up to date: the filling ahead held
+   now. The hold ends by itself at its time, and gives way while it's on to
+   less audio ahead than plays for the rest of it and a second more at
+   HOLD_BYTES_PER_SEC: as that runs down, the filling goes on. */
+static bool fill_held(void)
+{
+    if (!hold_on)
+        return false;
+    const long left = hold_until - current_tick;
+    if (left <= 0)
+    {
+        hold_on = false;
+        return false;
+    }
+    return data_counters.audio
+           >= (size_t)(left + HOLD_SPARE_TICKS) * (HOLD_BYTES_PER_SEC / HZ);
+}
+
+/* the same with the counters brought up to date first, as the buffer fills */
+static bool fill_held_now(void)
+{
+    if (!hold_on)
+        return false;
+    update_data_counters(NULL);
+    return fill_held();
+}
+
 /* Q_BUFFER_HANDLE event and buffer data for the given handle.
-   Return whether or not the buffering should continue explicitly.  */
-static bool buffer_handle(int handle_id, size_t to_buffer)
+   Return whether or not the buffering should continue explicitly.
+   holdable: a hold of the filling ahead (buf_hold_fill()) stops it between
+   chunks, once it has what a reader waited for */
+static bool buffer_handle(int handle_id, size_t to_buffer, bool holdable)
 {
     logf("buffer_handle(%d, %lu)", handle_id, (unsigned long)to_buffer);
+    fill_stopped_by_hold = false;
     struct memory_handle *h = find_handle(handle_id);
     if (!h)
         return true;
@@ -730,6 +783,11 @@ static bool buffer_handle(int handle_id, size_t to_buffer)
             /* Normal buffering - check queue */
             if (!queue_empty(&buffering_queue))
                 break;
+            if (holdable && h->end >= h->wanted && fill_held_now())
+            {
+                fill_stopped_by_hold = true;
+                break;
+            }
         } else {
             if (to_buffer <= (size_t)rc)
                 break; /* Done */
@@ -839,9 +897,15 @@ static bool fill_buffer(void)
     mutex_unlock(&llist_mutex);
 
     while (queue_empty(&buffering_queue) && m) {
-        if (m->end < m->filesize && !buffer_handle(m->id, 0)) {
-            m = NULL;
-            break;
+        if (m->end < m->filesize) {
+            if (!buffer_handle(m->id, 0, true)) {
+                m = NULL;
+                break;
+            }
+            /* stopped by a hold: the rest after it, the disk not let
+               sleep meanwhile, even if the hold has ended since */
+            if (fill_stopped_by_hold)
+                return true;
         }
         m = HLIST_NEXT(m);
     }
@@ -1209,10 +1273,10 @@ static void rebuffer_handle(int handle_id, off_t newpos)
         h->ridx = ringbuf_add(h->data, newpos - h->start);
         h->pos  = newpos;
 
-        if (buffer_handle(handle_id, amount + 1) && h->end >= h->pos) {
+        if (buffer_handle(handle_id, amount + 1, false) && h->end >= h->pos) {
             /* It really did succeed */
             queue_reply(&buffering_queue, 0);
-            buffer_handle(handle_id, 0); /* Ok, try the rest */
+            buffer_handle(handle_id, 0, false); /* Ok, try the rest */
             return;
         }
         /* Data collision or other file error - must reset */
@@ -1246,7 +1310,7 @@ static void rebuffer_handle(int handle_id, off_t newpos)
 
     /* Reset the handle to its new position */
     h->ridx = h->widx = h->data = new_index;
-    h->start = h->pos = h->end = newpos;
+    h->start = h->pos = h->end = h->wanted = newpos;
 
     if (h->fd >= 0)
         lseek(h->fd, newpos, SEEK_SET);
@@ -1266,7 +1330,7 @@ static void rebuffer_handle(int handle_id, off_t newpos)
 
     /* Now we do the rebuffer */
     queue_reply(&buffering_queue, 0);
-    buffer_handle(handle_id, 0);
+    buffer_handle(handle_id, 0, false);
 }
 
 /* Backend to bufseek and bufadvance */
@@ -1373,7 +1437,10 @@ static struct memory_handle *prep_bufdata(int handle_id, size_t *size,
     off_t wait_end = h->pos + realsize;
 
     if (end < wait_end && end < h->filesize) {
-        /* Wait for the data to be ready */
+        /* Wait for the data to be ready, which a hold of the filling ahead
+           lets come first */
+        if (h->wanted < wait_end)
+            h->wanted = wait_end;
         unsigned int request = 1;
 
         do
@@ -1596,6 +1663,17 @@ size_t buf_get_watermark(void)
     return BUF_WATERMARK;
 }
 
+void buf_hold_fill(long ticks)
+{
+    if (ticks <= 0)
+    {
+        hold_on = false;
+        return;
+    }
+    hold_until = current_tick + MIN(ticks, HOLD_MAX_TICKS);
+    hold_on = true;
+}
+
 /** -- buffer thread helpers -- **/
 static void shrink_buffer(void)
 {
@@ -1634,7 +1712,7 @@ static void NORETURN_ATTR buffering_thread(void)
                 LOGFQUEUE("buffering < Q_START_FILL %d", (int)ev.data);
                 shrink_buffer();
                 queue_reply(&buffering_queue, 1);
-                if (buffer_handle((int)ev.data, 0)) {
+                if (buffer_handle((int)ev.data, 0, true)) {
                     filling = true;
                 }
                 else if (num_handles > 0 && conf_watermark > 0) {
@@ -1648,7 +1726,7 @@ static void NORETURN_ATTR buffering_thread(void)
             case Q_BUFFER_HANDLE:
                 LOGFQUEUE("buffering < Q_BUFFER_HANDLE %d", (int)ev.data);
                 queue_reply(&buffering_queue, 1);
-                buffer_handle((int)ev.data, 0);
+                buffer_handle((int)ev.data, 0, false);
                 break;
 
             case Q_REBUFFER_HANDLE:
@@ -1683,7 +1761,12 @@ static void NORETURN_ATTR buffering_thread(void)
         update_data_counters(NULL);
 
         if (filling) {
-            filling = data_counters.remaining > 0 ? fill_buffer() : false;
+            /* held, it goes on once the hold is over, a tick's wait a turn
+               meanwhile */
+            if (data_counters.remaining == 0)
+                filling = false;
+            else if (!fill_held())
+                filling = fill_buffer();
         } else if (ev.id == SYS_TIMEOUT) {
             if (data_counters.useful < BUF_WATERMARK) {
                 /* The buffer is low and we're idle, just watching the levels
@@ -1695,7 +1778,11 @@ static void NORETURN_ATTR buffering_thread(void)
                    had a chance to clear anything yet */
                 if (data_counters.remaining > 0) {
                     shrink_buffer();
-                    filling = fill_buffer();
+                    /* held, it goes on once the hold is over */
+                    if (fill_held())
+                        filling = true;
+                    else
+                        filling = fill_buffer();
                 }
             }
         }
