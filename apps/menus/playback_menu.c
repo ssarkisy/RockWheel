@@ -177,10 +177,6 @@ MENUITEM_SETTING_SHARED(coverflow_pause_item, &global_settings.coverflow_pause, 
 #ifdef HAVE_SCROBBLER
 MENUITEM_SETTING_SHARED(lastfm_item, &global_settings.scrobbler, NULL);
 #endif
-#ifdef HAVE_PITCHCONTROL
-MENUITEM_SETTING_SHARED(podcast_speed, &global_settings.podcast_speed, NULL);
-MENUITEM_SETTING_SHARED(audiobook_speed, &global_settings.audiobook_speed, NULL);
-#endif
 MENUITEM_SETTING(pause_rewind, &global_settings.pause_rewind, NULL);
 #ifdef HAVE_PLAY_FREQ
 MENUITEM_SETTING(play_frequency, &global_settings.play_frequency, NULL);

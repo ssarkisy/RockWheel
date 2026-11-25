@@ -49,9 +49,6 @@ extern const struct menu_item_ex
 /* The settings of the iPod settings menu, from the menus they are in */
 extern const struct menu_item_ex
         shuffle_item, repeat_mode, replaygain_type, /* playback_menu.c */
-#ifdef HAVE_PITCHCONTROL
-        podcast_speed, audiobook_speed,
-#endif
 #ifdef HAVE_CROSSFADE
         crossfade,
 #endif

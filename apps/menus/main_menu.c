@@ -871,10 +871,9 @@ MENUITEM_FUNCTION(main_menu_config_item, 0, ID2P(LANG_MAIN_MENU),
 MAKE_MENU(settings_sound, ID2P(LANG_SOUND_SETTINGS), NULL, Icon_NOICON,
           &ipod_eq_row, &replaygain_type, &volume_limit, &crossfeed, &balance);
 
+/* the speeds of podcasts and audiobooks not here: Now Playing's speed view
+   sets them, on the episode or book that plays (wps.c) */
 MAKE_MENU(settings_playback, ID2P(LANG_PLAYBACK), NULL, Icon_NOICON,
-#ifdef HAVE_PITCHCONTROL
-          &podcast_speed, &audiobook_speed,
-#endif
 #ifdef HAVE_CROSSFADE
           &crossfade,
 #endif
