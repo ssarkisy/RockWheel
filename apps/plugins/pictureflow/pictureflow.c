@@ -604,6 +604,44 @@ static struct configdata config[] =
 
 #define CONFIG_NUM_ITEMS (sizeof(config) / sizeof(struct configdata))
 
+/* What the config file holds, as last read or written: written again as
+   Cover Flow quits only if something of it changed, where at every quit its
+   rewrite took 15 to 48 ms on the iPod */
+static struct {
+    bool known;
+    struct pf_config_t cfg;
+    int art_idx, art_inspected;
+} cfg_file;
+
+static void cfg_file_note(bool known)
+{
+    cfg_file.known = known;
+    rb->memcpy(&cfg_file.cfg, &pf_cfg, sizeof(pf_cfg));
+    cfg_file.art_idx = aa_cache.idx;
+    cfg_file.art_inspected = aa_cache.inspected;
+}
+
+static bool cfg_file_same(void)
+{
+    return cfg_file.known && !rb->memcmp(&cfg_file.cfg, &pf_cfg, sizeof(pf_cfg))
+           && cfg_file.art_idx == aa_cache.idx
+           && cfg_file.art_inspected == aa_cache.inspected;
+}
+
+static int pf_config_write(void)
+{
+    const int ret = configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS,
+                                    CONFIG_VERSION);
+    cfg_file_note(ret >= 0);
+    return ret;
+}
+
+static void pf_config_read(void)
+{
+    cfg_file_note(configfile_load(CONFIG_FILE, config, CONFIG_NUM_ITEMS,
+                                  CONFIG_VERSION) >= 0);
+}
+
 /** below we allocate the memory we want to use **/
 
 static pix_t *buffer; /* for now it always points to the lcd framebuffer */
@@ -1016,7 +1054,7 @@ static void config_save(int cache_version, bool update_albumart)
 {
     pf_cfg.cache_version = cache_version;
     pf_cfg.update_albumart = update_albumart;
-    configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS, CONFIG_VERSION);
+    pf_config_write();
 }
 
 static void config_set_defaults(struct pf_config_t *cfg)
@@ -3145,16 +3183,14 @@ aa_failure:
     if (verbose)
     {
         if (aa_cache.inspected >= pf_idx.album_ct)
-            configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS,
-                            CONFIG_VERSION);
+            pf_config_write();
         return false;
     }
 
 aa_success:
     if (aa_cache.inspected >= pf_idx.album_ct)
     {
-        configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS,
-                            CONFIG_VERSION);
+        pf_config_write();
         free_all_slide_prio(0);
         if (pf_state == pf_idle)
             rb->queue_post(&thread_q, EV_WAKEUP, 0);
@@ -5683,8 +5719,7 @@ static int display_settings_menu(void)
                 pf_cfg.cache_version = CACHE_REBUILD;
                 rb->remove(EMPTY_SLIDE);
                 rb->remove(UNSHOWN_SLIDE);
-                configfile_save(CONFIG_FILE, config,
-                                CONFIG_NUM_ITEMS, CONFIG_VERSION);
+                pf_config_write();
                 return -3; /* re-init */
             case MENU_ATTACHED_USB:
                 return PLUGIN_USB_CONNECTED;
@@ -5872,8 +5907,7 @@ static int main_menu(void)
                 pf_cfg.cache_version = CACHE_REBUILD;
                 rb->remove(EMPTY_SLIDE);
                 rb->remove(UNSHOWN_SLIDE);
-                configfile_save(CONFIG_FILE, config,
-                                CONFIG_NUM_ITEMS, CONFIG_VERSION);
+                pf_config_write();
                 return -3; /* re-init */
             case PF_UPDATE_CACHE:
                 if (!rb->yesno_pop_confirm(ID2P(LANG_UPDATE_CACHE)))
@@ -5882,8 +5916,7 @@ static int main_menu(void)
                 pf_cfg.cache_version = CACHE_REBUILD;
                 rb->remove(EMPTY_SLIDE);
                 rb->remove(UNSHOWN_SLIDE);
-                configfile_save(CONFIG_FILE, config,
-                                CONFIG_NUM_ITEMS, CONFIG_VERSION);
+                pf_config_write();
                 return -3; /* re-init */
             case PF_MENU_SETTINGS:
                 result = settings_menu();
@@ -6504,7 +6537,7 @@ static int context_menu(void)
         sort_albums(pf_cfg.sort_albums_by == SORT_BY_YEAR ? SORT_BY_ARTIST_AND_NAME
                                                           : SORT_BY_YEAR, true);
         /* kept at once, as USB or switching off saves nothing of it */
-        configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS, CONFIG_VERSION);
+        pf_config_write();
         return 0;
     }
     /* without the first two rows the rest are two up */
@@ -6869,7 +6902,7 @@ static bool init(void)
     rb->memset(&aa_cache, 0, sizeof(struct albumart_t));
 
     config_set_defaults(&pf_cfg); /* must appear before configfile_save */
-    configfile_load(CONFIG_FILE, config, CONFIG_NUM_ITEMS, CONFIG_VERSION);
+    pf_config_read();
 #ifdef ITUNESDB_HAVE_ART
     pf_cfg.slide_spacing = COVER_FLOW_SPACING;
     pf_cfg.center_margin = COVER_FLOW_MARGIN;
@@ -7130,7 +7163,7 @@ static bool prompt_reinit(void)
         pf_cfg.cache_version = CACHE_REBUILD;
         rb->remove(EMPTY_SLIDE);
         rb->remove(UNSHOWN_SLIDE);
-        configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS, CONFIG_VERSION);
+        pf_config_write();
         if (!reinit())
             return false;
     }
@@ -9355,7 +9388,7 @@ static enum plugin_status prepare_album_list(void)
     pf_boost(true); /* down in cleanup */
     rb->memset(&aa_cache, 0, sizeof(struct albumart_t));
     config_set_defaults(&pf_cfg);
-    configfile_load(CONFIG_FILE, config, CONFIG_NUM_ITEMS, CONFIG_VERSION);
+    pf_config_read();
 
     pf_idx.buf = rb->plugin_get_buffer(&buf_size);
     pf_idx.buf_sz = buf_size;
@@ -9498,8 +9531,7 @@ enum plugin_status plugin_start(const void *parameter)
             state_left();
 #endif
 
-        if (configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS,
-                            CONFIG_VERSION))
+        if (!cfg_file_same() && pf_config_write())
         {
 #ifdef USEGSLIB
             grey_show(false);
