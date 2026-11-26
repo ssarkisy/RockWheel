@@ -238,8 +238,13 @@ extern bool lcd_update_held(int *x, int *y, int *width, int *height);
    hold, so that a screen drawn for a slide has it too; on the main core
    only, not with interrupts off (a crash screen), nor while a thread owns
    the updates (a slide, whose frames are of screens that had it) */
-extern void (*lcd_update_filter)(int x, int y, int width, int height);
+extern void (*lcd_update_filter)(int x, int y, int width, int height,
+                                  bool anew);
 extern void lcd_update_filter_rect(int x, int y, int width, int height);
+/* The next update's rectangle drawn anew whole, every pixel of it, as a
+   scrolling line's step is (scroll_now()): the filter told so (anew), not
+   left to compare what it had there; taken by that update or reset here */
+extern void lcd_update_anew(bool anew);
 #endif
 extern void lcd_clear_viewport(void);
 extern void lcd_clear_display(void);

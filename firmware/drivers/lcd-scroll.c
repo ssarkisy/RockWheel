@@ -171,7 +171,16 @@ bool LCDFN(scroll_now)(struct scrollinfo *s)
     drawmode   = s->vp->drawmode;
     s->scroll_func(s);
 
+#if defined(MAIN_LCD) && LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+    /* the scroll functions draw all of the line's rectangle again, its
+       ground and its text: lcd_scroll_fn() and line.c's scroller (style_line()
+       fills the row) */
+    lcd_update_anew(true);
+#endif
     LCDFN(update_viewport_rect)(s->x, s->y, s->width, s->height);
+#if defined(MAIN_LCD) && LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+    lcd_update_anew(false);
+#endif
 
 #if LCD_DEPTH > 1
     s->vp->fg_pattern = fg_pattern;

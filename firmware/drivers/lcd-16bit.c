@@ -85,7 +85,28 @@ bool lcd_own_updates(bool own)
     return dropped;
 }
 
-void (*lcd_update_filter)(int x, int y, int width, int height);
+void (*lcd_update_filter)(int x, int y, int width, int height, bool anew);
+static bool update_anew; /* the next update's rectangle drawn anew whole */
+
+void lcd_update_anew(bool anew)
+{
+    update_anew = anew;
+}
+
+static void update_filter(int x, int y, int width, int height, bool anew)
+{
+#if defined(CPU_ARM) && (CONFIG_PLATFORM & PLATFORM_NATIVE)
+    /* a crash screen, drawn with interrupts off over whatever was shown */
+    if (!irq_enabled())
+        return;
+#endif
+    /* nor while a thread owns the updates, as a slide: its frames are of
+       screens that went through it; a scrolling line's step drawn under
+       them meanwhile isn't taken as anew, as a frame may cover it */
+    if (updates_owner || !lcd_update_filter)
+        return;
+    lcd_update_filter(x, y, width, height, anew);
+}
 
 void lcd_update_filter_rect(int x, int y, int width, int height)
 {
@@ -93,14 +114,9 @@ void lcd_update_filter_rect(int x, int y, int width, int height)
     if (CURRENT_CORE != CPU)
         return;
 #endif
-#if defined(CPU_ARM) && (CONFIG_PLATFORM & PLATFORM_NATIVE)
-    /* a crash screen, drawn with interrupts off over whatever was shown */
-    if (!irq_enabled())
-        return;
-#endif
-    if (updates_owner || !lcd_update_filter)
-        return;
-    lcd_update_filter(x, y, width, height);
+    const bool anew = update_anew;
+    update_anew = false;
+    update_filter(x, y, width, height, anew);
 }
 
 bool lcd_update_held(int *x, int *y, int *width, int *height)
@@ -131,7 +147,7 @@ bool lcd_update_held(int *x, int *y, int *width, int *height)
     *width = LCD_WIDTH;
     *height = LCD_HEIGHT;
     /* the whole screen goes, of which only the rectangle was filtered */
-    lcd_update_filter_rect(0, 0, LCD_WIDTH, LCD_HEIGHT);
+    update_filter(0, 0, LCD_WIDTH, LCD_HEIGHT, false);
     return false;
 }
 

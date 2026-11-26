@@ -934,8 +934,13 @@ int menu_cover_pane_shadow_width(void)
    band's pixels as last darkened or left, so that each is darkened once
    however often it goes to the display: one that is so still is left; 0
    there, black, which darkening leaves as it is, for a pixel drawn anew
-   (pane_shadow_anew()). Static, of the pane's whole height: 9600 bytes on
-   the Video, 7040 on the iPod photo. */
+   (pane_shadow_anew()), as all of a frame of Moving Cover and of a
+   scrolling line's step are. The one exception: a pixel drawn again by
+   anything else whose new colour is by chance the very one it was darkened
+   to is taken as still so, and left without the shadow until it changes;
+   rarely, as a pixel at an edge of a line's text the theme draws anew.
+   Static, of the pane's whole height: 9600 bytes on the Video, 7040 on the
+   iPod photo. */
 #define SHADOW_COLS ARRAYLEN(pane_shadow)
 static fb_data shadow_shown[LCD_HEIGHT][SHADOW_COLS];
 
@@ -971,9 +976,10 @@ static void pane_shadow_anew(int x0, int y0, int x1, int y1)
         memset(&shadow_shown[y][i0], 0, (i1 - i0) * sizeof(fb_data));
 }
 
-/* lcd_update_filter: the band's part of the rectangle, if it shows. Each
-   column's share of 256 kept, for the theme's strength and pane */
-static void pane_shadow_filter(int x, int y, int width, int height)
+/* lcd_update_filter: the band's part of the rectangle, if it shows; a
+   rectangle drawn anew whole, as a scrolling line's step, taken so first.
+   Each column's share of 256 kept, for the theme's strength and pane */
+static void pane_shadow_filter(int x, int y, int width, int height, bool anew)
 {
     static int strength = -1, at = -1, cols;
     static unsigned short keep[SHADOW_COLS];
@@ -984,6 +990,8 @@ static void pane_shadow_filter(int x, int y, int width, int height)
     if (left <= 0 || x0 >= left + (int)SHADOW_COLS || x1 <= left
         || y >= LCD_HEIGHT || y + height <= 0)
         return;
+    if (anew)
+        pane_shadow_anew(x, y, x + width, y + height);
     const int now = ui_metric(UI_METRIC_PANE_SHADOW);
     if (now != strength || left != at)
     {
