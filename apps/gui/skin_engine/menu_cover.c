@@ -945,8 +945,10 @@ static fb_data shadow_shown[LCD_HEIGHT][SHADOW_COLS];
    radio's) */
 static bool pane_shown(void)
 {
+    /* the theme's own skin, as loaded: asked so, never loaded here, inside
+       an update of the screen */
     if (menu_theme_wide() || !viewportmanager_theme_shown(SCREEN_MAIN)
-        || !skin_get_gwps(CUSTOM_STATUSBAR, SCREEN_MAIN)->data->wps_loaded)
+        || !skin_has_file(CUSTOM_STATUSBAR, SCREEN_MAIN))
         return false;
     switch (get_current_activity())
     {
@@ -975,8 +977,11 @@ static void pane_shadow_filter(int x, int y, int width, int height)
 {
     static int strength = -1, at = -1, cols;
     static unsigned short keep[SHADOW_COLS];
+    /* the columns the display is sent, which its drivers widen to pairs of
+       pixels, x and width even (lcd-video.c, lcd-color_nano.c) */
+    const int x0 = x & ~1, x1 = (x + width + 1) & ~1;
     const int left = ui_metric(UI_METRIC_PANE_LEFT);
-    if (left <= 0 || x >= left + (int)SHADOW_COLS || x + width <= left
+    if (left <= 0 || x0 >= left + (int)SHADOW_COLS || x1 <= left
         || y >= LCD_HEIGHT || y + height <= 0)
         return;
     const int now = ui_metric(UI_METRIC_PANE_SHADOW);
@@ -988,7 +993,7 @@ static void pane_shadow_filter(int x, int y, int width, int height)
         for (int i = 0; i < cols; i++)
             keep[i] = 256 - pane_shadow[i] * strength / 100;
     }
-    const int i0 = MAX(x - left, 0), i1 = MIN(x + width - left, cols);
+    const int i0 = MAX(x0 - left, 0), i1 = MIN(x1 - left, cols);
     const int y0 = MAX(y, 0), y1 = MIN(y + height, LCD_HEIGHT);
     if (i0 >= i1 || !pane_shown())
         return;
