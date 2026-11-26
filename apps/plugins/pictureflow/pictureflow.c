@@ -6744,12 +6744,17 @@ static bool start_playback_(bool return_to_WPS)
    the covers move (pcmbuf_hold_for_ui()): it held each of the playlist's small
    writes back by a frame of the codec's and its DSP's, 270 to 350 ms where 94
    did with the music stopped. Only with more than 3 s decoded, and over as the
-   new music starts. */
+   new music starts. And the new music's buffer not filled ahead until Now
+   Playing's first frame, which ends the hold (buf_hold_fill()), as Cover Flow's
+   opening: Now Playing's own reads waited behind its chunks */
 static bool start_playback(bool return_to_WPS)
 {
     rb->pcmbuf_hold_for_ui(HZ);
+    rb->buf_hold_fill(2 * HZ);
     const bool played = start_playback_(return_to_WPS);
     rb->pcmbuf_hold_for_ui(0);
+    if (!played || !return_to_WPS)
+        rb->buf_hold_fill(0);
     return played;
 }
 #endif /* PF_PLAYBACK_CAPABLE */

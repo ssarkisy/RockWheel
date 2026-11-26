@@ -38,6 +38,7 @@
 #include "storage.h"
 #include "screens.h"
 #include "playlist.h"
+#include "buffering.h"
 #include "icons.h"
 #include "lang.h"
 #include "bookmark.h"
@@ -1298,6 +1299,9 @@ long gui_wps_show(void)
             skin_request_full_update(WPS);
             update = true;
             gwps_enter_wps(theme_enabled);
+            /* shown: the music's buffer fills ahead again, held from a song
+               chosen in Cover Flow (buf_hold_fill()) */
+            buf_hold_fill(0);
             theme_enabled = true;
         }
         else

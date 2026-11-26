@@ -113,7 +113,8 @@ void buf_set_base_handle(int handle_id);
 void buf_set_watermark(size_t bytes);
 size_t buf_get_watermark(void);
 /* The buffer's filling ahead held off for so many ticks, two seconds at most,
-   as a screen that reads the disk opens (Cover Flow); 0 ends it. Only while
+   as a screen that reads the disk opens (Cover Flow, and Now Playing after a
+   song chosen there); 0 ends it. Only while
    the audio buffered ahead plays out the rest of the hold with a second to
    spare, each track's at twice its average rate or more, at the speed it
    plays: below that it fills as usual. What a reader waits for (bufread()'s
