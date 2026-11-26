@@ -976,22 +976,24 @@ static void pane_shadow_anew(int x0, int y0, int x1, int y1)
         memset(&shadow_shown[y][i0], 0, (i1 - i0) * sizeof(fb_data));
 }
 
-/* lcd_update_filter: the band's part of the rectangle, if it shows; a
-   rectangle drawn anew whole, as a scrolling line's step, taken so first.
-   Each column's share of 256 kept, for the theme's strength and pane */
+/* lcd_update_filter: the band's part of the rectangle, if the pane shows;
+   a rectangle drawn anew whole, as a scrolling line's step, then taken so
+   first. Each column's share of 256 kept, for the theme's strength and
+   pane */
 static void pane_shadow_filter(int x, int y, int width, int height, bool anew)
 {
     static int strength = -1, at = -1, cols;
     static unsigned short keep[SHADOW_COLS];
-    /* the columns the display is sent, which its drivers widen to pairs of
-       pixels, x and width even (lcd-video.c, lcd-color_nano.c) */
+    /* the pixels the display is sent, which its drivers widen to pairs: of
+       columns, x and width even, on the Video (lcd-video.c) and the iPod
+       photo's panel of type 1; of rows, y and height even, on its panel of
+       type 0, which is sent column by column (lcd-color_nano.c). Both
+       taken here, whatever the panel */
     const int x0 = x & ~1, x1 = (x + width + 1) & ~1;
     const int left = ui_metric(UI_METRIC_PANE_LEFT);
     if (left <= 0 || x0 >= left + (int)SHADOW_COLS || x1 <= left
         || y >= LCD_HEIGHT || y + height <= 0)
         return;
-    if (anew)
-        pane_shadow_anew(x, y, x + width, y + height);
     const int now = ui_metric(UI_METRIC_PANE_SHADOW);
     if (now != strength || left != at)
     {
@@ -1002,9 +1004,12 @@ static void pane_shadow_filter(int x, int y, int width, int height, bool anew)
             keep[i] = 256 - pane_shadow[i] * strength / 100;
     }
     const int i0 = MAX(x0 - left, 0), i1 = MIN(x1 - left, cols);
-    const int y0 = MAX(y, 0), y1 = MIN(y + height, LCD_HEIGHT);
+    const int y0 = MAX(y & ~1, 0), y1 = MIN((y + height + 1) & ~1, LCD_HEIGHT);
     if (i0 >= i1 || !pane_shown())
         return;
+    /* as drawn, not as widened */
+    if (anew)
+        pane_shadow_anew(x, y, x + width, y + height);
     extern struct frame_buffer_t lcd_framebuffer_default;
     fb_data *const fb = lcd_framebuffer_default.fb_ptr;
     const fb_data *const backdrop = lcd_get_backdrop();

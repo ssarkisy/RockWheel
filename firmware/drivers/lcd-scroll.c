@@ -172,9 +172,12 @@ bool LCDFN(scroll_now)(struct scrollinfo *s)
     s->scroll_func(s);
 
 #if defined(MAIN_LCD) && LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
-    /* the scroll functions draw all of the line's rectangle again, its
-       ground and its text: lcd_scroll_fn() and line.c's scroller (style_line()
-       fills the row) */
+    /* The scroll functions draw all of the line's rectangle again, its
+       ground and its text: lcd_scroll_fn() and line.c's scroller, whose
+       style_line() fills the row, but for a line of STYLE_NONE; a plugin's
+       own scroll function need not. The filter takes it so only beside the
+       theme's pane (menu_cover.c), whose lines are the theme's, of
+       STYLE_DEFAULT */
     lcd_update_anew(true);
 #endif
     LCDFN(update_viewport_rect)(s->x, s->y, s->width, s->height);
