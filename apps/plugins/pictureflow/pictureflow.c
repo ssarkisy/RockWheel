@@ -6643,7 +6643,7 @@ static bool select_album(unsigned int album, unsigned int artist)
 /*
  * Puts selected album's tracks into a newly created playlist and starts playing
  */
-static bool start_playback(bool return_to_WPS)
+static bool start_playback_(bool return_to_WPS)
 {
 #ifdef USEGSLIB
     grey_show(false);
@@ -6705,6 +6705,19 @@ static bool start_playback(bool return_to_WPS)
         grey_show(true);
 #endif
     return true;
+}
+
+/* The music playing not decoded on while its playlist is made anew, as while
+   the covers move (pcmbuf_hold_for_ui()): it held each of the playlist's small
+   writes back by a frame of the codec's and its DSP's, 270 to 350 ms where 94
+   did with the music stopped. Only with more than 3 s decoded, and over as the
+   new music starts. */
+static bool start_playback(bool return_to_WPS)
+{
+    rb->pcmbuf_hold_for_ui(HZ);
+    const bool played = start_playback_(return_to_WPS);
+    rb->pcmbuf_hold_for_ui(0);
+    return played;
 }
 #endif /* PF_PLAYBACK_CAPABLE */
 
