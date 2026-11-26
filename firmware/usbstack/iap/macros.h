@@ -22,13 +22,33 @@
 #include "debug.h"
 
 #if DEBUG_ENABLE_INFO == 1
-#define LOG(fmt, ...) logf("%lu %s:%d " fmt, iap_debug_timestamp(), __func__, __LINE__ __VA_OPT__(, __VA_ARGS__));
+#define LOG(fmt, ...)                                                   \
+    do {                                                                \
+        logf("%lu %s:%d " fmt, iap_debug_timestamp(), __func__,         \
+             __LINE__ __VA_OPT__(, __VA_ARGS__));                       \
+        iap_trace_logf("%lu %s:%d " fmt, iap_debug_timestamp(),         \
+                       __func__, __LINE__ __VA_OPT__(, __VA_ARGS__));   \
+    } while(0)
+#elif defined(IAP_TRACE)
+#define LOG(fmt, ...)                                                   \
+    iap_trace_logf("%lu %s:%d " fmt, iap_debug_timestamp(), __func__,   \
+                   __LINE__ __VA_OPT__(, __VA_ARGS__))
 #else
 #define LOG(...)
 #endif
 
 #if DEBUG_ENABLE_ERROR == 1
-#define ERROR(fmt, ...) logf("%lu %s:%d " fmt, iap_debug_timestamp(), __func__, __LINE__ __VA_OPT__(, __VA_ARGS__));
+#define ERROR(fmt, ...)                                                 \
+    do {                                                                \
+        logf("%lu %s:%d " fmt, iap_debug_timestamp(), __func__,         \
+             __LINE__ __VA_OPT__(, __VA_ARGS__));                       \
+        iap_trace_logf("%lu ERR %s:%d " fmt, iap_debug_timestamp(),     \
+                       __func__, __LINE__ __VA_OPT__(, __VA_ARGS__));   \
+    } while(0)
+#elif defined(IAP_TRACE)
+#define ERROR(fmt, ...)                                                 \
+    iap_trace_logf("%lu ERR %s:%d " fmt, iap_debug_timestamp(),         \
+                   __func__, __LINE__ __VA_OPT__(, __VA_ARGS__))
 #else
 #define ERROR(...)
 #endif

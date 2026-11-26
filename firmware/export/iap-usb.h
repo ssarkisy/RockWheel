@@ -1,8 +1,14 @@
 #pragma once
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "config.h"
+
+/* Define to record every iAP accessory session (USB setup traffic, iAP
+ * packets and decisions) to ROCKBOX_DIR "/iap_trace.log", for diagnosing a
+ * head unit. The file is appended to and never trimmed. */
+/* #define IAP_TRACE */
 
 #ifdef USB_ENABLE_IAP
 /* usbstack/iap/notification.c */
@@ -36,4 +42,17 @@ static inline void iap_on_shuffle_state(int state) {
 static inline void iap_on_repeat_state(int state) {
     (void)state;
 }
+#endif
+
+#if defined(USB_ENABLE_IAP) && defined(IAP_TRACE)
+/* usbstack/iap/debug.c */
+void iap_trace_logf(const char* fmt, ...);
+void iap_trace_hex(const char* prefix, const void* data, size_t len);
+void iap_trace_flush(void);
+bool iap_trace_needs_flush(void);
+#else
+#define iap_trace_logf(...)        do { } while(0)
+#define iap_trace_hex(...)         do { } while(0)
+#define iap_trace_flush()          do { } while(0)
+#define iap_trace_needs_flush()    false
 #endif

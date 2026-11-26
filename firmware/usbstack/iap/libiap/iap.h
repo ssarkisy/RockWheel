@@ -10,6 +10,7 @@ extern "C" {
 IAPBool        iap_init_ctx(struct IAPContext* ctx, struct IAPOpts opts, void* platform);
 IAPBool        iap_deinit_ctx(struct IAPContext* ctx);
 IAPBool        _iap_feed_packet(struct IAPContext* ctx, const uint8_t* data, size_t size);
+IAPBool        _iap_feed_deferred_packet(struct IAPContext* ctx);
 struct IAPSpan _iap_get_buffer_for_send_payload(struct IAPContext* ctx);
 int32_t        _iap_next_trans_id(struct IAPContext* ctx);
 IAPBool        _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command, int32_t trans_id, uint8_t* final_ptr);
@@ -24,7 +25,7 @@ IAPBool _iap_send_hid_reports(struct IAPContext* ctx, size_t begin, size_t end);
 IAPBool _iap_send_next_report(struct IAPContext* ctx);
 
 /* fid-token-values.c */
-int _iap_hanlde_set_fid_token_values(struct IAPSpan* request, struct IAPSpan* response);
+int _iap_hanlde_set_fid_token_values(struct IAPContext* ctx, struct IAPSpan* request, struct IAPSpan* response);
 
 /* notification.c */
 void iap_notify_track_time_position(struct IAPContext* ctx, uint32_t pos_ms);

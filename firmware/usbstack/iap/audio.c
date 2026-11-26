@@ -25,12 +25,13 @@
 #include "usb_drv.h"
 
 #include "../usb_iap.h"
+#include "audio.h"
 #include "buffer.h"
 #include "libiap/iap.h"
 #include "macros.h"
 #include "platform.h"
 
-static const unsigned long samprs[] = {
+static unsigned long samprs[] = {
     SAMPR_48,
     SAMPR_44,
     SAMPR_32,
@@ -44,6 +45,12 @@ static struct StagingBuffer staging_buffers[USB_BATCH_SLOTS + 1]; /* +1 for sile
 static int                  staging_buffer_index;
 
 #define zero_buffer (staging_buffers[USB_BATCH_SLOTS])
+
+/* Audio packets served from SDRAM were lost on the isochronous endpoint far
+ * more often under codec and disk load, the controller fetching each one by
+ * DMA only as the host asks for it; from IRAM almost none are. The silent
+ * packet, rarely sent, stays in SDRAM. */
+static uint8_t staging_iram[USB_BATCH_SLOTS][AS_PACKET_SIZE] IBSS_ATTR __attribute__((aligned(32)));
 
 static const uint8_t* pulled_buf;
 static size_t         pulled_buf_size;
@@ -63,11 +70,38 @@ static void sink_set_freq(uint16_t freq) {
 
     track_attrs_sent = true;
 
+    if(freq >= iap_pcm_sink.caps.num_samprs) {
+        freq = 0;
+    }
     set_freq = freq;
+    cur_freq = freq;
 
     struct IAPContext* ctx = _iap_acquire_ctx(true);
     check_act(iap_select_sampr(ctx, samprs[freq]), );
     _iap_release_ctx();
+}
+
+void iap_audio_configure_samprs(uint8_t sampr_mask) {
+    size_t count = 0;
+    if(sampr_mask & IAP_SAMPR_BIT_48) {
+        samprs[count++] = SAMPR_48;
+    }
+    if(sampr_mask & IAP_SAMPR_BIT_44) {
+        samprs[count++] = SAMPR_44;
+    }
+    if(sampr_mask & IAP_SAMPR_BIT_32) {
+        samprs[count++] = SAMPR_32;
+    }
+    if(count == 0) {
+        samprs[0] = SAMPR_48;
+        samprs[1] = SAMPR_44;
+        samprs[2] = SAMPR_32;
+        count     = 3;
+    }
+    iap_pcm_sink.caps.num_samprs   = count;
+    iap_pcm_sink.caps.default_freq = 0;
+    set_freq                       = 0;
+    cur_freq                       = 0;
 }
 
 static size_t calc_packet_size(uint8_t cur_sampr, uint8_t packet_count) {
@@ -81,10 +115,11 @@ static size_t calc_packet_size(uint8_t cur_sampr, uint8_t packet_count) {
      *   44100 * 4 / 1000 = 176.4
      *   => (9 * 176 + 180) + (...
      */
-    if(cur_sampr == 0) {
+    const unsigned long rate = cur_sampr < iap_pcm_sink.caps.num_samprs ? samprs[cur_sampr] : SAMPR_48;
+    if(rate == SAMPR_48) {
         /*48k*/
         return 192;
-    } else if(cur_sampr == 2) {
+    } else if(rate == SAMPR_32) {
         /*32k*/
         return 128;
     } else {
@@ -207,10 +242,15 @@ struct pcm_sink iap_pcm_sink = {
 bool iap_audio_init(void) {
     check_act(usb_drv_batch_init(AS_EP_IN, batch_get_more) == 0, return false);
 
-    for(size_t i = 0; i < ARRAYLEN(staging_buffers); i += 1) {
-        check_act(iap_alloc_usb_send_buffer(AS_PACKET_SIZE, &staging_buffers[i].buf), goto error);
-        staging_buffers[i].cursor = 0;
+    for(size_t i = 0; i < USB_BATCH_SLOTS; i += 1) {
+        staging_buffers[i].buf.ptr = staging_iram[i];
+        staging_buffers[i].cursor  = 0;
     }
+    check_act(iap_alloc_usb_send_buffer(AS_PACKET_SIZE, &zero_buffer.buf), {
+        usb_drv_batch_deinit();
+        return false;
+    });
+    zero_buffer.cursor   = 0;
     staging_buffer_index = 0;
 
     memset(zero_buffer.buf.ptr, 0, AS_PACKET_SIZE);
@@ -223,23 +263,12 @@ bool iap_audio_init(void) {
     packet_count     = 0;
 
     return true;
-
-error:
-    for(size_t i = 0; i < ARRAYLEN(staging_buffers); i += 1) {
-        if(staging_buffers[i].buf.ptr != NULL) {
-            core_free(staging_buffers[i].buf.handle);
-            staging_buffers[i].buf.ptr = NULL;
-        }
-    }
-    return false;
 }
 
 bool iap_audio_deinit(void) {
     check_act(usb_drv_batch_deinit() == 0, );
-    for(size_t i = 0; i < ARRAYLEN(staging_buffers); i += 1) {
-        core_free(staging_buffers[i].buf.handle);
-        staging_buffers[i].buf.ptr = NULL;
-    }
+    core_free(zero_buffer.buf.handle);
+    zero_buffer.buf.ptr = NULL;
     return true;
 }
 
@@ -259,12 +288,12 @@ bool iap_audio_disable(void) {
 
 bool iap_audio_set_sampr(uint32_t sampr) {
     uint16_t freq = 0;
-    for(; freq < ARRAYLEN(samprs); freq += 1) {
+    for(; freq < iap_pcm_sink.caps.num_samprs; freq += 1) {
         if(samprs[freq] == sampr) {
             break;
         }
     }
-    check_act(freq < ARRAYLEN(samprs), return false);
+    check_act(freq < iap_pcm_sink.caps.num_samprs, return false);
 
     if(set_freq >= 0 && freq != set_freq) {
         /* Accessories should only set the frequency we requested via

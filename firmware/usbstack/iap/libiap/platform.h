@@ -35,6 +35,10 @@ enum IAPPlatformControl {
     IAPPlatformControl_Stop,
     IAPPlatformControl_Next,
     IAPPlatformControl_Prev,
+    IAPPlatformControl_NextAlbum,
+    IAPPlatformControl_PrevAlbum,
+    IAPPlatformControl_NextPlaylist,
+    IAPPlatformControl_PrevPlaylist,
     IAPPlatformControl_VolumeUp,
     IAPPlatformControl_VolumeDown,
     IAPPlatformControl_ToggleMute,
@@ -93,9 +97,10 @@ void    iap_platform_control(struct IAPContext* iap_ctx, enum IAPPlatformControl
 IAPBool iap_platform_get_volume(struct IAPContext* iap_ctx, struct IAPPlatformVolumeStatus* status);
 IAPBool iap_platform_get_power_status(struct IAPContext* iap_ctx, struct IAPPlatformPowerStatus* status);
 IAPBool iap_platform_get_shuffle_setting(struct IAPContext* iap_ctx, uint8_t* status /* IAPIPodStateShuffleSettingState */);
-IAPBool iap_platform_set_shuffle_setting(struct IAPContext* iap_ctx, uint8_t status /* IAPIPodStateShuffleSettingState */);
+/* restore_on_exit: the accessory wants the previous setting back when it detaches */
+IAPBool iap_platform_set_shuffle_setting(struct IAPContext* iap_ctx, uint8_t status /* IAPIPodStateShuffleSettingState */, IAPBool restore_on_exit);
 IAPBool iap_platform_get_repeat_setting(struct IAPContext* iap_ctx, uint8_t* status /* IAPIPodStateRepeatSettingState */);
-IAPBool iap_platform_set_repeat_setting(struct IAPContext* iap_ctx, uint8_t status /* IAPIPodStateRepeatSettingState */);
+IAPBool iap_platform_set_repeat_setting(struct IAPContext* iap_ctx, uint8_t status /* IAPIPodStateRepeatSettingState */, IAPBool restore_on_exit);
 IAPBool iap_platform_get_date_time(struct IAPContext* iap_ctx, struct IAPDateTime* time);
 IAPBool iap_platform_get_backlight_level(struct IAPContext* iap_ctx, uint8_t* level);
 IAPBool iap_platform_get_hold_switch_state(struct IAPContext* iap_ctx, IAPBool* state);
@@ -104,6 +109,13 @@ IAPBool iap_platform_set_playing_track(struct IAPContext* iap_ctx, uint32_t inde
 IAPBool iap_platform_open_artwork(struct IAPContext* iap_ctx, uint32_t index, struct IAPPlatformArtwork* artwork);
 IAPBool iap_platform_get_artwork_ptr(struct IAPContext* iap_ctx, struct IAPPlatformArtwork* artwork, struct IAPSpan* span);
 IAPBool iap_platform_close_artwork(struct IAPContext* iap_ctx, struct IAPPlatformArtwork* artwork);
+
+/* extended database callbacks */
+IAPBool iap_platform_db_reset(struct IAPContext* iap_ctx, uint8_t selection_hierarchy);
+IAPBool iap_platform_db_select(struct IAPContext* iap_ctx, uint8_t type, uint32_t index);
+IAPBool iap_platform_db_get_count(struct IAPContext* iap_ctx, uint8_t type, uint32_t* count);
+IAPBool iap_platform_db_get_record(struct IAPContext* iap_ctx, uint8_t type, uint32_t index, char* buf, size_t buf_size);
+void    iap_platform_db_play_selection(struct IAPContext* iap_ctx, uint32_t track_index, struct IAPPlatformPendingControl pending);
 
 /* other callbacks */
 IAPBool iap_platform_on_acc_samprs_received(struct IAPContext* iap_ctx, struct IAPSpan* samprs);

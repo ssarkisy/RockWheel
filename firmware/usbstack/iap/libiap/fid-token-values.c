@@ -12,7 +12,7 @@
     ack->subtype = token_header->subtype;                           \
     ack->status  = IAPFIDTokenValuesIdentifyAckStatus_Accepted;
 
-int _iap_hanlde_set_fid_token_values(struct IAPSpan* request, struct IAPSpan* response) {
+int _iap_hanlde_set_fid_token_values(struct IAPContext* ctx, struct IAPSpan* request, struct IAPSpan* response) {
     const struct IAPSetFIDTokenValuesPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
     check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
     check_ret(iap_span_write_8(response, request_payload->num_token_values), -IAPAckStatus_EOutOfResource);
@@ -40,7 +40,9 @@ int _iap_hanlde_set_fid_token_values(struct IAPSpan* request, struct IAPSpan* re
             const uint32_t opt = swap_32(token_tail->device_option);
             const uint32_t id  = swap_32(token_tail->device_id);
             pack_accepted(IAPFIDTokenValuesIdentifyAck);
-            if(opt != IAPIdentifyDeviceLingoesOptions_ImmediateAuth) {
+            if(opt != IAPIdentifyDeviceLingoesOptions_ImmediateAuth &&
+               opt != IAPIdentifyDeviceLingoesOptions_DeferAuth &&
+               opt != IAPIdentifyDeviceLingoesOptions_NoAuth) {
                 ack->status = IAPFIDTokenValuesIdentifyAckStatus_RequiredFailed;
             }
             (void)id;
@@ -116,9 +118,15 @@ int _iap_hanlde_set_fid_token_values(struct IAPSpan* request, struct IAPSpan* re
         case IAPFIDTokenTypes_AccDigitalAudioSampleRates: {
             const struct IAPFIDTokenValuesAccDigitalAudioSampleRatesToken* token = iap_span_read(&token_span, sizeof(*token));
             check_ret(token != NULL, -IAPAckStatus_EBadParameter);
+            if(ctx != NULL) {
+                ctx->idps_samprs_count = 0;
+            }
             while(token_span.size > 0) {
                 uint32_t rate;
                 check_ret(iap_span_read_32(&token_span, &rate), -IAPAckStatus_EBadParameter);
+                if(ctx != NULL && ctx->idps_samprs_count < array_size(ctx->idps_samprs)) {
+                    ctx->idps_samprs[ctx->idps_samprs_count++] = swap_32(rate);
+                }
             }
             pack_accepted(IAPFIDTokenValuesAccDigitalAudioSampleRatesAck);
         } break;
@@ -132,9 +140,20 @@ int _iap_hanlde_set_fid_token_values(struct IAPSpan* request, struct IAPSpan* re
             check_ret(token != NULL, -IAPAckStatus_EBadParameter);
             pack_accepted(IAPFIDTokenValuesMicrophoneCapsAck);
         } break;
-        default:
-            warn("unknown fid %04X", token_header->type << 8 | token_header->subtype);
-            return -IAPAckStatus_EBadParameter;
+        default: {
+            warn("unknown fid %04X (accepting)", token_header->type << 8 | token_header->subtype);
+            struct {
+                uint8_t length;
+                uint8_t type;
+                uint8_t subtype;
+                uint8_t status;
+            } __attribute__((packed))* const ack = iap_span_alloc(response, 4);
+            check_ret(ack != NULL, -IAPAckStatus_EOutOfResource);
+            ack->length  = 3;
+            ack->type    = token_header->type;
+            ack->subtype = token_header->subtype;
+            ack->status  = IAPFIDTokenValuesIdentifyAckStatus_Accepted;
+        } break;
         }
     }
     return 0;

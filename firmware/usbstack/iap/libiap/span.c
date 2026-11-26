@@ -12,7 +12,13 @@ const void* iap_span_read(struct IAPSpan* span, size_t count) {
     return span->ptr - count;
 }
 
+#ifdef __APPLE__
+void* iap_span_alloc(struct IAPSpan* span, size_t count) {
+    return (void*)(uintptr_t)iap_span_read(span, count);
+}
+#else
 void* iap_span_alloc(struct IAPSpan* span, size_t count) __attribute__((alias("iap_span_read")));
+#endif
 
 IAPBool iap_span_append(struct IAPSpan* span, const void* ptr, size_t size) {
     void* dest = iap_span_alloc(span, size);
@@ -34,7 +40,7 @@ IAPBool iap_span_append(struct IAPSpan* span, const void* ptr, size_t size) {
         return iap_true;                                                          \
     }                                                                             \
     IAPBool iap_span_write_##width(struct IAPSpan* span, uint##width##_t value) { \
-        uint##width##_t* ptr = iap_span_alloc(span, width / 8);                   \
+        uu##width* ptr = iap_span_alloc(span, width / 8);                        \
         check_ret(ptr != NULL, iap_false);                                        \
         *ptr = swap_##width(value);                                               \
         return iap_true;                                                          \

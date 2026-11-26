@@ -31,13 +31,47 @@
 struct IAPContext* _iap_acquire_ctx(bool lock);
 void               _iap_release_ctx(void);
 
+enum {
+    IAP_SAMPR_BIT_32 = 1u << 0,
+    IAP_SAMPR_BIT_44 = 1u << 1,
+    IAP_SAMPR_BIT_48 = 1u << 2,
+};
+
 struct Platform {
-    struct IAPAllocResult            malloc_results[4]; /* allow up to 4 mallocs */
+    struct IAPAllocResult            malloc_results[5]; /* libiap makes 4 */
     struct IAPPlatformPendingControl pending_control;
     bool                             control_pending;
+    bool                             autoplay_done; /* resume once per accessory session */
 
-    int aa_slot;
+    int      aa_slot;
+    uint8_t  acc_sampr_mask;
+
+    /* extended interface DB selection state */
+    bool     db_initialized;
+    uint8_t  db_hierarchy;
+    bool     db_has_playlist;
+    uint32_t db_playlist_idx;
+    int32_t  db_artist_seek;
+    int32_t  db_album_seek;
+    int32_t  db_genre_seek;
+    int32_t  db_composer_seek;
+    int32_t  db_kind;
+    bool     db_has_track;
+    uint32_t db_track_idx;
+    uint16_t db_browsed_mask;
+    uint16_t db_listed_mask; /* types whose records were retrieved (not just counted) */
+    bool     db_selection_pending;
+
+    /* user settings to put back when the accessory detaches, for changes it
+     * asked to be restored on exit (-1: nothing to restore) */
+    int8_t saved_repeat_mode;
+    int8_t saved_shuffle;
 };
+
+void iap_audio_configure_samprs(uint8_t sampr_mask);
+void iap_platform_autoplay(struct IAPContext* iap_ctx);
+/* put back settings the accessory changed for its session only */
+void iap_platform_restore_on_exit(struct Platform* plt);
 
 /* helper functions */
 uint8_t _iap_convert_play_status(int rb_audio_status);

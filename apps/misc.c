@@ -382,6 +382,7 @@ static void system_flush(void)
 #ifdef HAVE_CODEC_COP
     codec_cop_note_counts();
 #endif
+    iap_trace_flush();
     health_flush();
     call_storage_idle_notifys(true); /*doesnt work on usb and shutdown from ata thread */
 }
@@ -832,6 +833,7 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
 #ifdef HAVE_CODEC_COP
             codec_cop_note_counts();
 #endif
+            iap_trace_flush();
             health_flush();
             call_storage_idle_notifys(true);
             return 0;

@@ -391,7 +391,11 @@ static int usb_iap_init_connection(void) {
         .usb_highspeed         = usb_drv_port_speed(),
         .ignore_hid_report_id  = iap_true,
         .artwork_single_report = iap_false,
+#ifdef IAP_TRACE
+        .enable_packet_dump    = iap_true,
+#else
         .enable_packet_dump    = iap_false,
+#endif
     };
     check_act(iap_init_ctx(ctx, opts, &platform), goto cleanup_audio);
     _iap_release_ctx();
@@ -402,12 +406,17 @@ static int usb_iap_init_connection(void) {
     if(platform.aa_slot < 0) {
         ERROR("failed to claim albumart slot");
     }
-    platform.control_pending = false;
+    platform.control_pending   = false;
+    platform.autoplay_done     = false;
+    platform.saved_repeat_mode = -1;
+    platform.saved_shuffle     = -1;
 
     /* register timer */
     timeout_register(&tick_tmo, tick_callback, HZ / 10, 0);
 
     iap_initialized = true;
+    iap_trace_logf("iap init spd=%d iface=%d,%d,%d", usb_drv_port_speed(),
+                   ctrl.interface, stream.interface, hid.interface);
     LOG("initialized");
     return 0;
 
@@ -419,6 +428,7 @@ cleanup_audio:
 
 static int usb_iap_set_interface(int intf, int alt) {
     LOG("set interface interface=%d alt=%d", intf, alt);
+    iap_trace_logf("iap set_if %d alt=%d", intf, alt);
     if(intf == ctrl.interface || intf == hid.interface)
         return alt == 0 ? 0 : -1;
     check_act(intf == stream.interface, return -1);
@@ -455,10 +465,12 @@ static void usb_iap_disconnect(void) {
         playback_release_aa_slot(platform.aa_slot);
     }
     struct IAPContext* ctx = _iap_acquire_ctx(true);
+    iap_platform_restore_on_exit(&platform);
     check_act(iap_deinit_ctx(ctx), );
     _iap_release_ctx();
     check_act(iap_audio_deinit(), );
     LOG("disconnected");
+    iap_trace_flush();
 }
 
 static void usb_iap_transfer_complete(int ep, int dir, int status, int length) {
@@ -536,6 +548,8 @@ static bool control_request_if_class(struct usb_ctrlrequest* req, uint8_t* reqda
     if(recip_interface == hid.interface) {
         switch(req->bRequest) {
         case USB_HID_GET_REPORT:
+        case USB_HID_GET_IDLE:
+        case USB_HID_GET_PROTOCOL:
             respond_zero(req, reqdata, reqdata_size);
             return true;
         case USB_HID_SET_REPORT: {
@@ -543,26 +557,39 @@ static bool control_request_if_class(struct usb_ctrlrequest* req, uint8_t* reqda
             logf("==== acc: %u bytes ====", req->wLength);
             iap_platform_dump_hex(reqdata, req->wLength);
 #endif
-
             struct IAPContext* ctx = _iap_acquire_ctx(true);
             const bool         ret = iap_feed_hid_report(ctx, reqdata, req->wLength);
             _iap_release_ctx();
 
-            check_act(ret, return false);
+            if(!ret) {
+                ERROR("iap_feed_hid_report failed len=%u", req->wLength);
+                iap_trace_hex("iap RX-FAIL", reqdata, req->wLength);
+            }
+            /* Always ACK HID SET_REPORT at USB EP0 level; protocol errors
+             * are handled inside iAP. */
             usb_core_control_response(USB_CONTROL_ACK, NULL, 0);
             return true;
         }
         case USB_HID_SET_IDLE:
+        case USB_HID_SET_PROTOCOL:
             usb_core_control_response(USB_CONTROL_ACK, NULL, 0);
             return true;
         }
+    } else if(recip_interface == ctrl.interface ||
+              recip_interface == stream.interface) {
+        if(req->bRequestType & USB_DIR_IN) {
+            respond_zero(req, reqdata, reqdata_size);
+        } else {
+            usb_core_control_response(USB_CONTROL_ACK, NULL, 0);
+        }
+        return true;
     }
     return false;
 }
 
 static bool control_request_if_endpoint(struct usb_ctrlrequest* req, uint8_t* reqdata, size_t reqdata_size) {
     LOG("ctrl to endpoint %x (stream=%x, hid=%x)", req->wIndex, AS_EP_IN, HID_EP_IN);
-    if(req->wIndex == AS_EP_IN) {
+    if((req->wIndex & 0x7f) == (AS_EP_IN & 0x7f)) {
         const uint8_t recip_entity     = req->wIndex >> 8;
         const uint8_t control_selector = req->wValue >> 8;
         (void)recip_entity;
@@ -655,7 +682,29 @@ static void usb_iap_notify_event(intptr_t data) {
 #endif
 
         check_act(iap_periodic_tick(ctx), );
+
+        /* Real iPods resume playback once a head unit has finished setting
+         * up the session (it registers play-status notifications right after
+         * authentication). Many cars (e.g. Volvo) never send Play
+         * themselves. */
+        bool want_autoplay = false;
+        if(!plt->autoplay_done && ctx->enabled_notifications_4 != 0 &&
+           stream.sample_rate != 0) {
+            plt->autoplay_done = true;
+            const int st       = audio_status();
+            want_autoplay      = !(st & AUDIO_STATUS_PLAY) ||
+                                 (st & AUDIO_STATUS_PAUSE);
+        }
         _iap_release_ctx();
+        if(want_autoplay) {
+            iap_trace_logf("autoplay on accessory session start");
+            iap_platform_autoplay(ctx);
+        }
+
+        /* write the trace out before its RAM buffer fills up */
+        if(iap_trace_needs_flush()) {
+            iap_trace_flush();
+        }
     } break;
     }
 }

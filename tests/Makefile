@@ -90,14 +90,15 @@ LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o \
 
 .PHONY: all check check-keys check-itunesdb check-covers check-codecs \
 	check-wheel check-disk check-lines check-panic check-hang check-fw \
-	check-orders check-bar check-compilations clean
+	check-orders check-bar check-iap check-compilations clean
 all: $(BUILD)/test_keys $(BUILD)/test_itunesdb $(BUILD)/test_covers \
 	$(BUILD)/test_wheel $(BUILD)/test_panic_record $(BUILD)/test_hang \
-	$(BUILD)/test_fw $(BUILD)/test_orders $(BUILD)/test_skin_ratio
+	$(BUILD)/test_fw $(BUILD)/test_orders $(BUILD)/test_skin_ratio \
+	$(BUILD)/test_iap
 
 check: check-keys check-itunesdb check-covers check-wheel check-codecs \
 	check-compilations check-disk check-lines check-panic check-hang \
-	check-fw check-orders check-bar
+	check-fw check-orders check-bar check-iap
 
 $(OBJ)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -463,6 +464,30 @@ check-compilations: warble
 		$(TESTS)/codecs/fixtures $(COMPILATION_CASES)
 	@$(PYTHON) -I -B $(TESTS)/metadata/check_compilations.py $(WARBLE) \
 		$(COMPILATION_CASES)
+
+# libiap protocol state machine, IDPS, DB browsing, and playback/skip controls
+IAP_LIB_DIR := $(ROOT)/firmware/usbstack/iap/libiap
+IAP_LIB_SRC := debug.c fid-token-values.c hid.c iap.c notification.c span.c
+IAP_LIB_OBJ := $(addprefix $(OBJ)/iap/lib/,$(IAP_LIB_SRC:.c=.o))
+IAP_CFLAGS  := -std=gnu11 -g -O1 $(SANITIZE) -I$(TESTS)/iap/host_inc \
+	-I$(ROOT)/firmware/usbstack/iap -Wall -Wextra
+
+$(OBJ)/iap/lib/%.o: $(IAP_LIB_DIR)/%.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(IAP_CFLAGS) -MMD -c $< -o $@
+
+$(OBJ)/iap/test_iap.o: $(TESTS)/iap/test_iap.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(IAP_CFLAGS) -I$(TESTS)/lib -MMD -c $< -o $@
+
+$(BUILD)/test_iap: $(OBJ)/iap/test_iap.o $(IAP_LIB_OBJ) $(OBJ)/lib/check.o
+	@echo LD $(notdir $@)
+	@$(HOST_CC) $(LDFLAGS) -o $@ $^
+
+check-iap: $(BUILD)/test_iap
+	@$(BUILD)/test_iap
 
 clean:
 	rm -rf $(BUILD)

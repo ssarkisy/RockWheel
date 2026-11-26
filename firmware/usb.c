@@ -103,7 +103,8 @@ void usb_set_mode(int mode)
 #   define USB_EXTRA_STACK 0x0 /*Define in firmware/export/config/[target].h*/
 #endif
 #ifdef USB_ENABLE_IAP
-#define IAP_EXTRA_STACK DEFAULT_STACK_SIZE*2
+/* the iAP handlers browse the tag cache and playlists on the USB thread */
+#define IAP_EXTRA_STACK DEFAULT_STACK_SIZE*16
 #else
 #define IAP_EXTRA_STACK 0
 #endif
