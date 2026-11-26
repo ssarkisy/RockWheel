@@ -28,7 +28,9 @@
 
 extern const unsigned char * const byte_units[];
 extern const unsigned char * const * const kibyte_units;
-extern const unsigned char * const unit_strings_core[];
+/* a value's unit (UNIT_SEC...) as shown beside it, a time's in the menu's
+   language: "" for UNIT_INT, NULL for one without a word (UNIT_SIGNED) */
+const char *unit_string(int unit);
 /* Format a large-range value for output, using the appropriate unit so that
  * the displayed value is in the range 1 <= display < 1000 (1024 for "binary"
  * units) if possible, and 3 significant digits are shown. If a buffer is

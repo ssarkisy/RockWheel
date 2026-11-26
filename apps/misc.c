@@ -133,12 +133,14 @@ const unsigned char * const byte_units[] =
 
 const unsigned char * const * const kibyte_units = &byte_units[1];
 
-/* units used with format_time_auto, option_select.c->option_get_valuestring() */
-const unsigned char * const unit_strings_core[] =
+/* units used with format_time_auto, option_select.c->option_get_valuestring(),
+   read with unit_string(): the time units, ms to hr, are the menu language's
+   phrases */
+static const unsigned char * const unit_strings_core[] =
 {
-    [UNIT_INT] = "",    [UNIT_MS]  = "ms",
-    [UNIT_SEC] = "s",   [UNIT_MIN] = "min",
-    [UNIT_HOUR]= "hr",  [UNIT_KHZ] = "kHz",
+    [UNIT_INT] = "",    [UNIT_MS]  = ID2P(LANG_UNIT_MS),
+    [UNIT_SEC] = ID2P(LANG_UNIT_SEC), [UNIT_MIN] = ID2P(LANG_UNIT_MIN),
+    [UNIT_HOUR]= ID2P(LANG_UNIT_HOUR), [UNIT_KHZ] = "kHz",
     [UNIT_DB]  = "dB",  [UNIT_PERCENT] = "%",
     [UNIT_MAH] = "mAh", [UNIT_PIXEL] = "px",
     [UNIT_PER_SEC] = "per sec",
@@ -146,6 +148,13 @@ const unsigned char * const unit_strings_core[] =
     [UNIT_MB]  = "MB",  [UNIT_KBIT]  = "kb/s",
     [UNIT_PM_TICK] = "units/10ms",
 };
+
+const char *unit_string(int unit)
+{
+    if ((unsigned)unit >= ARRAYLEN(unit_strings_core))
+        return NULL;
+    return P2STR(unit_strings_core[unit]);
+}
 
 /* Format a large-range value for output, using the appropriate unit so that
  * the displayed value is in the range 1 <= display < 1000 (1024 for "binary"
@@ -1757,7 +1766,7 @@ const char *format_time_auto(char *buffer, int buf_len, long value,
         if (!supress_unit)
         {
             strlcat(buffer, " ", buf_len);
-            strlcat(buffer, unit_strings_core[units[max_idx]], buf_len);
+            strlcat(buffer, unit_string(units[max_idx]), buf_len);
         }
     }
     else /*RTL Languages*/
@@ -1787,7 +1796,7 @@ const char *format_time_auto(char *buffer, int buf_len, long value,
 
         if (!supress_unit)
         {
-            strmemccpy(buffer, unit_strings_core[units[max_idx]], buf_len);
+            strmemccpy(buffer, unit_string(units[max_idx]), buf_len);
 #if 0 /* unused */
             left_offset +=
 #endif

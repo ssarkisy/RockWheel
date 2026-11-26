@@ -104,7 +104,7 @@ const char *option_get_valuestring(const struct settings_list *setting,
         if (is_time_setting)
             str = option_get_timestring(buffer, buf_len, (long)temp_var, info_unit);
 
-        str_unit = unit_strings_core[info_unit];
+        str_unit = unit_string(info_unit);
 
         if (formatter)
             str = formatter(buffer, buf_len, (int)temp_var, str_unit);

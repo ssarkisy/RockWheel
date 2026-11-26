@@ -19812,3 +19812,59 @@
     *: "สุ่ม"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_UNIT_MS
+  desc: the unit after a time of milliseconds in a setting's value (300 ms): the language's own short abbreviation for milliseconds
+  user: core
+  <source>
+    *: "ms"
+  </source>
+  <dest>
+    *: "ms"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UNIT_SEC
+  desc: the unit after a time of seconds in a setting's value, as Settings > Backlight and Settings > Playback > Rewind on Resume show it (10 s): the language's own short abbreviation for seconds; short, as the value goes beside its setting's name on the iPod photo's rows of one line
+  user: core
+  <source>
+    *: "s"
+  </source>
+  <dest>
+    *: "วินาที"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UNIT_MIN
+  desc: the unit after a time of minutes in a setting's value, as Settings > Playback > Rewind on Resume shows a minute (1:00 min, minutes and seconds): the language's own short abbreviation for minutes, as in LANG_TIME_MIN; short, as the value goes beside its setting's name on the iPod photo's rows of one line
+  user: core
+  <source>
+    *: "min"
+  </source>
+  <dest>
+    *: "นาที"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UNIT_HOUR
+  desc: the unit after a time from an hour on (1:30:00 hr, hours, minutes and seconds), as the running time shows it: the language's own short abbreviation for hours, as in LANG_TIME_H
+  user: core
+  <source>
+    *: "hr"
+  </source>
+  <dest>
+    *: "ชม."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
