@@ -163,6 +163,7 @@ void lcd_update_rect(int x_start, int y_start, int width, int height)
         sim_lcd_update_tick = current_tick;
 #endif
 #if LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+    lcd_update_filter_rect(x_start, y_start, width, height);
     if (lcd_update_held(&x_start, &y_start, &width, &height))
         return;
 #endif

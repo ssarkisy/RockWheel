@@ -49,6 +49,9 @@
 #include "radio.h"
 #endif
 #include "transition.h"
+#include "misc.h"
+#include "menu.h"
+#include "viewport.h"
 #include "statusbar-skinned.h"
 #include "wps_internals.h"
 #include "skin_engine.h"
@@ -924,58 +927,105 @@ int menu_cover_pane_shadow_width(void)
     return i;
 }
 
-static void pane_shadow_rows(int x0, int y0, int y1, bool over_backdrop)
+/* It is drawn last, over all the pane shows, as the screen goes to the
+   display (lcd_update_filter): darkened in the framebuffer, whatever drew
+   there. The pictures under the pane have it already, which the slides
+   move with the screens: a pixel of the backdrop's is left as it is. The
+   band's pixels as last darkened or left, so that each is darkened once
+   however often it goes to the display: one that is so still is left; 0
+   there, black, which darkening leaves as it is, for a pixel drawn anew
+   (pane_shadow_anew()). Static, of the pane's whole height: 9600 bytes on
+   the Video, 7040 on the iPod photo. */
+#define SHADOW_COLS ARRAYLEN(pane_shadow)
+static fb_data shadow_shown[LCD_HEIGHT][SHADOW_COLS];
+
+/* The pane on the screen as the theme drew it, beside a list that leaves it
+   (the main menu; on the Video Music's menu and Photos', which have it too),
+   with nothing over it: no splash, no screen of its own (Now Playing, the
+   radio's) */
+static bool pane_shown(void)
 {
-    const int strength = ui_metric(UI_METRIC_PANE_SHADOW);
-    const int left = ui_metric(UI_METRIC_PANE_LEFT);
-    if (strength <= 0 || left <= 0)
-        return;
-    const fb_data *backdrop = over_backdrop ? lcd_get_backdrop() : NULL;
-    if (over_backdrop && !backdrop)
-        return;
-    struct viewport *vp = lcd_set_viewport_ex(NULL, 0);
-    for (int i = MAX(x0 - left, 0); i < (int)ARRAYLEN(pane_shadow); i++)
+    if (menu_theme_wide() || !viewportmanager_theme_shown(SCREEN_MAIN)
+        || !skin_get_gwps(CUSTOM_STATUSBAR, SCREEN_MAIN)->data->wps_loaded)
+        return false;
+    switch (get_current_activity())
     {
-        const int dark = pane_shadow[i] * strength / 100;
-        if (dark < 3 || left + i >= LCD_WIDTH)
-            break;
-        const unsigned keep = 256 - dark;
-        for (int y = MAX(y0, 0); y < MIN(y1, LCD_HEIGHT); y++)
+        case ACTIVITY_WPS:
+        case ACTIVITY_FM:
+        case ACTIVITY_RECORDING:
+            return false;
+        default:
+            return true;
+    }
+}
+
+/* the rectangle's part of the band drawn anew, all of it: its pixels to be
+   darkened, but for those of the backdrop's */
+static void pane_shadow_anew(int x0, int y0, int x1, int y1)
+{
+    const int left = ui_metric(UI_METRIC_PANE_LEFT);
+    const int i0 = MAX(x0 - left, 0), i1 = MIN(x1 - left, (int)SHADOW_COLS);
+    for (int y = MAX(y0, 0); y < MIN(y1, LCD_HEIGHT) && i0 < i1; y++)
+        memset(&shadow_shown[y][i0], 0, (i1 - i0) * sizeof(fb_data));
+}
+
+/* lcd_update_filter: the band's part of the rectangle, if it shows. Each
+   column's share of 256 kept, for the theme's strength and pane */
+static void pane_shadow_filter(int x, int y, int width, int height)
+{
+    static int strength = -1, at = -1, cols;
+    static unsigned short keep[SHADOW_COLS];
+    const int left = ui_metric(UI_METRIC_PANE_LEFT);
+    if (left <= 0 || x >= left + (int)SHADOW_COLS || x + width <= left
+        || y >= LCD_HEIGHT || y + height <= 0)
+        return;
+    const int now = ui_metric(UI_METRIC_PANE_SHADOW);
+    if (now != strength || left != at)
+    {
+        strength = now;
+        at = left;
+        cols = MIN(menu_cover_pane_shadow_width(), LCD_WIDTH - left);
+        for (int i = 0; i < cols; i++)
+            keep[i] = 256 - pane_shadow[i] * strength / 100;
+    }
+    const int i0 = MAX(x - left, 0), i1 = MIN(x + width - left, cols);
+    const int y0 = MAX(y, 0), y1 = MIN(y + height, LCD_HEIGHT);
+    if (i0 >= i1 || !pane_shown())
+        return;
+    extern struct frame_buffer_t lcd_framebuffer_default;
+    fb_data *const fb = lcd_framebuffer_default.fb_ptr;
+    const fb_data *const backdrop = lcd_get_backdrop();
+    for (int r = y0; r < y1; r++)
+    {
+        fb_data *p = fb + r * LCD_FBWIDTH + left;
+        const fb_data *b = backdrop ? backdrop + r * LCD_FBWIDTH + left : NULL;
+        fb_data *shown = shadow_shown[r];
+        for (int i = i0; i < i1; i++)
         {
-            fb_data *p = FBADDR(left + i, y);
-            /* what the backdrop shows there has the shadow already */
-            if (backdrop && *p == backdrop[y * LCD_FBWIDTH + left + i])
+            fb_data c = p[i];
+            if (c == shown[i])
                 continue;
-#if LCD_PIXELFORMAT == RGB565
-            const unsigned c = *p;
-            *p = (((c >> 11) * keep >> 8) << 11)
-                 | ((((c >> 5) & 0x3f) * keep >> 8) << 5)
-                 | ((c & 0x1f) * keep >> 8);
-#else
-            const unsigned c = FB_UNPACK_SCALAR_LCD(*p);
-            *p = FB_SCALARPACK_LCD(LCD_RGBPACK(RGB_UNPACK_RED(c) * keep >> 8,
-                                               RGB_UNPACK_GREEN(c) * keep >> 8,
-                                               RGB_UNPACK_BLUE(c) * keep >> 8));
-#endif
+            /* the backdrop's has it already; else RGB565's channels, which
+               the menus' covers have (ITUNESDB_HAVE_ART) */
+            if (!b || c != b[i])
+            {
+                c = (((c >> 11) * keep[i] >> 8) << 11)
+                    | ((((c >> 5) & 0x3f) * keep[i] >> 8) << 5)
+                    | ((c & 0x1f) * keep[i] >> 8);
+                p[i] = c;
+            }
+            shown[i] = c;
         }
     }
-    lcd_set_viewport_ex(vp, 0);
 }
 
-void menu_cover_pane_shadow(int x0, int y0, int y1)
+void menu_cover_pane_shadow_init(void)
 {
-    pane_shadow_rows(x0, y0, y1, false);
-}
-
-void menu_cover_pane_shadow_over(int x0, int y0, int y1)
-{
-    pane_shadow_rows(x0, y0, y1, true);
+    lcd_update_filter = pane_shadow_filter;
 }
 
 void menu_cover_shade(int x0, int y0, int y1)
 {
-    /* the list's shadow over the cover, of the columns it covers */
-    menu_cover_pane_shadow(x0, y0, y1);
     const int shade = ui_metric(UI_METRIC_PANE_SHADE);
     const int x = ui_metric(UI_METRIC_PANE_LEFT);
     if (shade <= 0 || x <= 0 || x + 2 > LCD_WIDTH || x0 > x + 1)
@@ -1025,6 +1075,10 @@ static void pan_draw(int h, long show_at, bool still)
     menu_cover_shade(pan.x0, pan.y0, pan.y1);
     /* the glass stays as the cover moves under it: on every frame */
     menu_cover_glass();
+    /* the list's shadow over all of the frame, which lcd_send_rect() sends
+       past lcd_update_rect()'s filter */
+    pane_shadow_anew(pan.x0, pan.y0, pan.x1, pan.y1);
+    lcd_update_filter_rect(pan.x0, pan.y0, width, pan.y1 - pan.y0);
 #ifdef PAN_ON_COP
     if (!still && cop_ready())
     {

@@ -520,8 +520,6 @@ static void draw_pane(struct screen *display, const struct look *lk,
     const int cx = x + w / 2;
     draw_mark(lk, &lk->pane, cx - lk->pane.w / 2, top);
     draw_paras(display, ps, 2, fg, font, cx, top + lk->pane.h + gap, 4);
-    /* the list's shadow over what was drawn here anew (menu_cover.h) */
-    menu_cover_pane_shadow(from, 24, LCD_HEIGHT);
 }
 
 /* a viewport of the skin, if it's drawn now */

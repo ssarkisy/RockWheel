@@ -510,6 +510,7 @@ static void write_rect(const fb_data *addr, int x, int y, int width, int height)
 /* Update a fraction of the display. */
 void lcd_update_rect(int x, int y, int width, int height)
 {
+    lcd_update_filter_rect(x, y, width, height);
     /* the first update as it wakes, which waking waits for, goes through */
     if (lcd_state.state != LCD_INITIAL && lcd_update_held(&x, &y, &width, &height))
         return;

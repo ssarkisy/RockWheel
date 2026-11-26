@@ -105,15 +105,11 @@ bool menu_cover_area(int *x0, int *y0, int *x1, int *y1);
    screen's column); left of that the shadow is the backdrop's, not to be
    darkened again */
 void menu_cover_shade(int x0, int y0, int y1);
-/* The list's shadow over the pane (UI_METRIC_PANE_SHADOW), where the pane's
-   pictures can't have it: over what is drawn on the screen's rows y0 to y1
-   of the pane from its column x0, as the cover, a frame of Moving Cover or
-   the caution over the note; and, each time it is drawn, over Photos'
-   collage on a theme's backdrop, as Classic's, its pixels that aren't the
-   backdrop's, which has the shadow already (_over()). Its width: the
-   columns from the pane's left it darkens, 0 for none */
-void menu_cover_pane_shadow(int x0, int y0, int y1);
-void menu_cover_pane_shadow_over(int x0, int y0, int y1);
+/* The list's shadow over the pane (UI_METRIC_PANE_SHADOW): in the pictures
+   under it, and over all that is drawn on it, darkened last as the screen
+   goes to the display (lcd_update_filter, which _init() sets at boot). Its
+   width: the columns from the pane's left it darkens, 0 for none */
+void menu_cover_pane_shadow_init(void);
 int menu_cover_pane_shadow_width(void);
 /* the glass over the cover shown in the pane (UI_METRIC_COVER_GLASS), over
    the part of it the screen shows, which stays as the cover moves under it */
@@ -151,14 +147,7 @@ static inline void menu_cover_frame_step(void) {}
 static inline bool menu_cover_to_read(void) { return false; }
 static inline void menu_cover_read(void) {}
 static inline void menu_cover_read_cancel(void) {}
-static inline void menu_cover_pane_shadow(int x0, int y0, int y1)
-{
-    (void)x0; (void)y0; (void)y1;
-}
-static inline void menu_cover_pane_shadow_over(int x0, int y0, int y1)
-{
-    (void)x0; (void)y0; (void)y1;
-}
+static inline void menu_cover_pane_shadow_init(void) {}
 static inline int menu_cover_pane_shadow_width(void) { return 0; }
 #endif
 

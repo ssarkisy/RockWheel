@@ -14,8 +14,8 @@ make_menu_icons.py, make_classic_220x176.py and make_dark_theme.py, and at a
 release's carry after those, on that branch's own pictures. A picture already
 done is left alone, and make_menu_icons.py and make_classic_220x176.py read the
 pane's gradient past it. What is drawn over the pane rather than under it has
-its shadow from the firmware (UI_METRIC_PANE_SHADOW): the cover, and Photos'
-collage where it isn't the backdrop between its photos."""
+its shadow from the firmware (UI_METRIC_PANE_SHADOW), last, as the screen goes
+to the display: all of it but the backdrop's own pixels."""
 import os
 import struct
 

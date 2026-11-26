@@ -301,6 +301,15 @@ void skin_update(enum skinnable_screens skin, enum screen_type screen,
 #if LCD_DEPTH == 16
     if (screen == SCREEN_MAIN)
     {
+#if LCD_STRIDEFORMAT != VERTICAL_STRIDE
+        /* what the screen's update changes last (lcd_update_filter), as
+           the list's shadow over the pane, changed now: the pixels hashed
+           below are then those that will show. Else each redraw of a line
+           there, as at the status line's changes, put all of the screen on
+           it again */
+        if (skin == CUSTOM_STATUSBAR)
+            lcd_update_filter_rect(0, 0, LCD_WIDTH, LCD_HEIGHT);
+#endif
         bool known;
         const uint32_t now = skin_pixels(gwps, skin, &known);
         const bool same = !full && known && shown_known[skin]
@@ -1721,16 +1730,6 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
         keep_own_colours = false;
         accent_image = false;
     }
-#if defined(HAVE_MENU_COVER) && LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
-    /* the list's shadow over the collage, as often as it is drawn: by a
-       redraw of its viewport alone too, as the status line's changes give */
-    if (img->photos_panel && display->screen_type == SCREEN_MAIN)
-    {
-        const struct viewport *cur = *display->current_viewport;
-        menu_cover_pane_shadow_over(cur->x + img->x, cur->y + img->y,
-                                    cur->y + img->y + img->subimage_height);
-    }
-#endif
 }
 
 #ifdef HAVE_ALBUMART

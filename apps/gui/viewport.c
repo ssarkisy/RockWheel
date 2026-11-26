@@ -324,6 +324,12 @@ void viewportmanager_outside_restore(void)
     }
 }
 
+bool viewportmanager_theme_shown(enum screen_type screen)
+{
+    return is_theme_enabled(screen) && !theme_undrawn[screen]
+           && !outside_dirty[screen];
+}
+
 void viewportmanager_init(void)
 {
     FOR_NB_SCREENS(i)
@@ -333,6 +339,8 @@ void viewportmanager_init(void)
         viewportmanager_theme_enable(i, true, NULL);
     }
     add_event(GUI_EVENT_ACTIONUPDATE, viewportmanager_update);
+    /* the list's shadow over the theme's pane, as the screen is updated */
+    menu_cover_pane_shadow_init();
 }
 
 void viewportmanager_theme_changed(const int which)

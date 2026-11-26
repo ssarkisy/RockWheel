@@ -85,6 +85,24 @@ bool lcd_own_updates(bool own)
     return dropped;
 }
 
+void (*lcd_update_filter)(int x, int y, int width, int height);
+
+void lcd_update_filter_rect(int x, int y, int width, int height)
+{
+#if NUM_CORES > 1
+    if (CURRENT_CORE != CPU)
+        return;
+#endif
+#if defined(CPU_ARM) && (CONFIG_PLATFORM & PLATFORM_NATIVE)
+    /* a crash screen, drawn with interrupts off over whatever was shown */
+    if (!irq_enabled())
+        return;
+#endif
+    if (updates_owner || !lcd_update_filter)
+        return;
+    lcd_update_filter(x, y, width, height);
+}
+
 bool lcd_update_held(int *x, int *y, int *width, int *height)
 {
 #if NUM_CORES > 1
@@ -112,6 +130,8 @@ bool lcd_update_held(int *x, int *y, int *width, int *height)
     *x = *y = 0;
     *width = LCD_WIDTH;
     *height = LCD_HEIGHT;
+    /* the whole screen goes, of which only the rectangle was filtered */
+    lcd_update_filter_rect(0, 0, LCD_WIDTH, LCD_HEIGHT);
     return false;
 }
 

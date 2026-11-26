@@ -282,8 +282,8 @@ enum ui_metric {
     /* the list's shadow over the main menu's pane, as a stock iPod classic's
        (menu_cover.c): percent of stock's strength; 0 for none. In the
        backdrops under the pane (themes/tools/make_pane_shadow.py), and by
-       the firmware over what is drawn on them: the cover, the collage of
-       photos, the caution over the note. Classic's alone */
+       the firmware over all that is drawn on them, last, as the screen goes
+       to the display. Classic's alone */
     UI_METRIC_PANE_SHADOW,
     UI_METRIC_COUNT
 };

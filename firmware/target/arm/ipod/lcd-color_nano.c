@@ -598,6 +598,7 @@ static void write_rect(int x, int y, int width, int height)
 /* Update a fraction of the display. */
 void lcd_update_rect(int x, int y, int width, int height)
 {
+    lcd_update_filter_rect(x, y, width, height);
     /* a screen drawn in full before it shows, as for the menus' slide: the
        driver holds its updates, as the iPod Video's does */
     if (lcd_update_held(&x, &y, &width, &height))

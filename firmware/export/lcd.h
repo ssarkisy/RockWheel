@@ -231,6 +231,15 @@ extern bool lcd_own_updates(bool own);
 /* for lcd_update_rect(): true to leave this one out; once the time is up,
    the whole screen instead, for those left out */
 extern bool lcd_update_held(int *x, int *y, int *width, int *height);
+/* What changes the main screen's framebuffer last, over everything drawn,
+   before a rectangle of it goes to the display: the apps' (the list's shadow
+   over the main menu's pane, menu_cover.c), NULL for none. Called through
+   lcd_update_filter_rect(), which lcd_update_rect() calls first, before its
+   hold, so that a screen drawn for a slide has it too; on the main core
+   only, not with interrupts off (a crash screen), nor while a thread owns
+   the updates (a slide, whose frames are of screens that had it) */
+extern void (*lcd_update_filter)(int x, int y, int width, int height);
+extern void lcd_update_filter_rect(int x, int y, int width, int height);
 #endif
 extern void lcd_clear_viewport(void);
 extern void lcd_clear_display(void);

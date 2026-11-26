@@ -73,6 +73,11 @@ void viewportmanager_redraw_unshown(void);
    next, what's beside it put back (viewport.c) */
 void viewportmanager_outside_dirty(enum screen_type screen);
 void viewportmanager_outside_restore(void);
+/* The theme is on the screen as it was drawn: enabled, not given back
+   undrawn (viewportmanager_theme_undo_unshown()), and beside the lists'
+   viewport no splash since over what the theme has there. From any thread
+   of the main core */
+bool viewportmanager_theme_shown(enum screen_type screen);
 
 void viewport_set_buffer(struct viewport *vp, struct frame_buffer_t *buffer,
                                                 const enum screen_type screen);
