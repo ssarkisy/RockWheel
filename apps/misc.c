@@ -1661,9 +1661,7 @@ unsigned int time_split_units(int unit_idx, unsigned long abs_val,
    value: should be passed in the same form as unit_idx
 
    supress_unit: may be set to true and in this case the
-   hr, min, sec, ms identifiers will be left off the resulting string but
-   since right to left languages are handled it is advisable to leave units
-   as an indication of the text direction
+   hr, min, sec, ms identifiers will be left off the resulting string
 */
 
 const char *format_time_auto(char *buffer, int buf_len, long value,
@@ -1673,9 +1671,6 @@ const char *format_time_auto(char *buffer, int buf_len, long value,
     bool               is_rtl      = lang_is_rtl();
     char               timebuf[25]; /* -2147483648:00:00.00\0 */
     int                len;
-#if 0 /* unused */
-    int left_offset;
-#endif
     unsigned char      base_idx, max_idx;
 
     unsigned long  units_in[UNIT_IDX_TIME_COUNT];
@@ -1686,12 +1681,15 @@ const char *format_time_auto(char *buffer, int buf_len, long value,
                         [UNIT_IDX_SEC] = 2,
                         [UNIT_IDX_MS]  = 3,
                    }; /* {0,2,2,3}; Field Widths */
+    /* in hh:mm:ss.mss: [HR] the length after the hours, ":59:59.999", for
+       their width; from their end, [MIN] where the ms start and [SEC] where
+       the seconds do. The fields' offsets are worked out from these */
     unsigned char  offsets[UNIT_IDX_TIME_COUNT] =
                    {
-                        [UNIT_IDX_HR]  = 10,/* ?:59:59.999 Std offsets    */
-                        [UNIT_IDX_MIN] = 7, /*0?:+1:+4.+7 need calculated */
-                        [UNIT_IDX_SEC] = 4,/* 999.59:59:0  RTL offsets    */
-                        [UNIT_IDX_MS]  = 0,/* 0  .4 :7 :10 won't change   */
+                        [UNIT_IDX_HR]  = 10,
+                        [UNIT_IDX_MIN] = 7,
+                        [UNIT_IDX_SEC] = 4,
+                        [UNIT_IDX_MS]  = 0,
                    }; /* {10,7,4,0}; Offsets */
     static const uint16_t unitlock[UNIT_IDX_TIME_COUNT] =
                    {
@@ -1708,14 +1706,6 @@ const char *format_time_auto(char *buffer, int buf_len, long value,
                         [UNIT_IDX_MS]  = UNIT_MS,
                    }; /* units */
 
-#if 0 /* unused */
-    if (idx_pos != NULL)
-    {
-        (*idx_pos)[0] = MIN((*idx_pos)[0], UNIT_IDX_TIME_COUNT - 1);
-        unit_idx |= unitlock[(*idx_pos)[0]];
-    }
-#endif
-
     base_idx = time_split_units(unit_idx, labs(value), &units_in);
 
     if (units_in[UNIT_IDX_HR] || (unit_idx & unitlock[UNIT_IDX_HR]))
@@ -1729,39 +1719,35 @@ const char *format_time_auto(char *buffer, int buf_len, long value,
     else /* value is 0 */
         max_idx = base_idx;
 
+    len = snprintf(timebuf, sizeof(timebuf),
+                   "%02lu:%02lu:%02lu.%03lu",
+                   units_in[UNIT_IDX_HR],
+                   units_in[UNIT_IDX_MIN],
+                   units_in[UNIT_IDX_SEC],
+                   units_in[UNIT_IDX_MS]);
+
+    fwidth[UNIT_IDX_HR]   = len - offsets[UNIT_IDX_HR];
+
+    /* calculate offsets of the other fields based on length of previous */
+    offsets[UNIT_IDX_MS]  = fwidth[UNIT_IDX_HR] + offsets[UNIT_IDX_MIN];
+    offsets[UNIT_IDX_SEC] = fwidth[UNIT_IDX_HR] + offsets[UNIT_IDX_SEC];
+    offsets[UNIT_IDX_MIN] = fwidth[UNIT_IDX_HR] + 1;
+    offsets[UNIT_IDX_HR]  = 0;
+
+    timebuf[offsets[base_idx] + fwidth[base_idx]] = '\0';
+
+    /* trim leading zero on the max_idx */
+    if ((unit_idx & UNIT_TRIM_ZERO) == UNIT_TRIM_ZERO &&
+        timebuf[offsets[max_idx]] == '0' && fwidth[max_idx] > 1)
+    {
+        offsets[max_idx]++;
+    }
+    const char *digits = &timebuf[offsets[max_idx]];
+
     if (!is_rtl)
     {
-        len = snprintf(timebuf, sizeof(timebuf),
-                       "%02lu:%02lu:%02lu.%03lu",
-                       units_in[UNIT_IDX_HR],
-                       units_in[UNIT_IDX_MIN],
-                       units_in[UNIT_IDX_SEC],
-                       units_in[UNIT_IDX_MS]);
-
-        fwidth[UNIT_IDX_HR]   = len - offsets[UNIT_IDX_HR];
-
-        /* calculate offsets of the other fields based on length of previous */
-        offsets[UNIT_IDX_MS]  = fwidth[UNIT_IDX_HR] + offsets[UNIT_IDX_MIN];
-        offsets[UNIT_IDX_SEC] = fwidth[UNIT_IDX_HR] + offsets[UNIT_IDX_SEC];
-        offsets[UNIT_IDX_MIN] = fwidth[UNIT_IDX_HR] + 1;
-        offsets[UNIT_IDX_HR]  = 0;
-
-        timebuf[offsets[base_idx] + fwidth[base_idx]] = '\0';
-
-#if 0 /* unused */
-        left_offset  = -(offsets[max_idx]);
-        left_offset +=
-#endif
         strlcpy(buffer, sign, buf_len);
-
-        /* trim leading zero on the max_idx */
-        if ((unit_idx & UNIT_TRIM_ZERO) == UNIT_TRIM_ZERO &&
-            timebuf[offsets[max_idx]] == '0' && fwidth[max_idx] > 1)
-        {
-            offsets[max_idx]++;
-        }
-
-        strlcat(buffer, &timebuf[offsets[max_idx]], buf_len);
+        strlcat(buffer, digits, buf_len);
 
         if (!supress_unit)
         {
@@ -1771,50 +1757,22 @@ const char *format_time_auto(char *buffer, int buf_len, long value,
     }
     else /*RTL Languages*/
     {
-        len = snprintf(timebuf, sizeof(timebuf),
-                       "%03lu.%02lu:%02lu:%02lu",
-                       units_in[UNIT_IDX_MS],
-                       units_in[UNIT_IDX_SEC],
-                       units_in[UNIT_IDX_MIN],
-                       units_in[UNIT_IDX_HR]);
-
-        fwidth[UNIT_IDX_HR] = len - offsets[UNIT_IDX_HR];
-
-#if 0 /* unused */
-        left_offset = -(offsets[base_idx]);
-#endif
-
-        /* trim leading zero on the max_idx */
-        if ((unit_idx & UNIT_TRIM_ZERO) == UNIT_TRIM_ZERO &&
-            timebuf[offsets[max_idx]] == '0' && fwidth[max_idx] > 1)
-        {
-            timebuf[offsets[max_idx]] = timebuf[offsets[max_idx]+1];
-            fwidth[max_idx]--;
-        }
-
-        timebuf[offsets[max_idx] + fwidth[max_idx]] = '\0';
-
+        /* the unit first: the lines lay a string's runs out left to right
+           (bidi_l2v()), so it is drawn left of the number, where a reading
+           from the right ends; the digits in their own order, as a number
+           is drawn (the fields written the other way round read 1:00 as
+           00:1). The sign after them, where it was */
         if (!supress_unit)
         {
             strmemccpy(buffer, unit_string(units[max_idx]), buf_len);
-#if 0 /* unused */
-            left_offset +=
-#endif
             strlcat(buffer, " ", buf_len);
-            strlcat(buffer, &timebuf[offsets[base_idx]], buf_len);
+            strlcat(buffer, digits, buf_len);
         }
         else
-            strmemccpy(buffer, &timebuf[offsets[base_idx]], buf_len);
+            strmemccpy(buffer, digits, buf_len);
 
         strlcat(buffer, sign, buf_len);
     }
-#if 0 /* unused */
-    if (idx_pos != NULL)
-    {
-        (*idx_pos)[1]= fwidth[*(idx_pos)[0]];
-        (*idx_pos)[0]= left_offset + offsets[(*idx_pos)[0]];
-    }
-#endif
 
     return buffer;
 }

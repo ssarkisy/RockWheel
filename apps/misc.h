@@ -80,9 +80,7 @@ unsigned int time_split_units(int unit_idx, unsigned long abs_val,
    value: should be passed in the same form as unit_idx
 
    supress_unit: may be set to true and in this case the
-   hr, min, sec, ms identifiers will be left off the resulting string but
-   since right to left languages are handled it is advisable to leave units
-   as an indication of the text direction
+   hr, min, sec, ms identifiers will be left off the resulting string
 */
 const char *format_time_auto(char *buffer, int buf_len, long value,
                                   int unit_idx, bool supress_unit);
