@@ -794,18 +794,18 @@
 </phrase>
 <phrase>
   id: LANG_CROSSFEED
-  desc: in sound settings
+  desc: in Settings > Sound, the setting that feeds a little of each stereo channel into the other: named as a stereo setting (Stereo Crossfeed), with the language's own word for stereo; short, to fit beside its value (On, Off) on the iPod photo's rows of one line
   user: core
   <source>
-    *: "Headphone Crossfeed"
-    ipodcolor: "Headphone Crossfeed"
+    *: "Stereo Crossfeed"
+    ipodcolor: "Stereo Crossfeed"
   </source>
   <dest>
-    *: "Crossfeed per cuffie"
-    ipodcolor: "Crossfeed per cuffie"
+    *: "Crossfeed stereo"
+    ipodcolor: "Crossfeed stereo"
   </dest>
   <voice>
-    *: "Crossfid"
+    *: "Crossfid stereo"
   </voice>
 </phrase>
 <phrase>
@@ -22261,13 +22261,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_PODCAST_SPEED
-  desc: the hint in the band under Settings > Playback while Podcast Speed is selected, in three lines at most: what the user gets from it
+  desc: deprecated
   user: core
   <source>
-    *: "How fast podcasts play. Voices keep their natural pitch."
+    *: ""
   </source>
   <dest>
-    *: "La velocità dei podcast. Le voci mantengono il tono naturale."
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -22275,15 +22275,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_AUDIOBOOK_SPEED
-  desc: the hint in the band under Settings > Playback while Audiobook Speed is selected, in three lines at most: what the user gets from it
+  desc: deprecated
   user: core
   <source>
-    *: "How fast audiobooks play. Voices keep their natural pitch."
-    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
+    *: ""
   </source>
   <dest>
-    *: "La velocità degli audiolibri. Le voci mantengono il tono naturale."
-    ipodcolor: "La velocità degli audiolibri. Le voci mantengono il tono naturale."
+    *: ""
   </dest>
   <voice>
     *: ""

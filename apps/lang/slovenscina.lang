@@ -5760,18 +5760,18 @@
 </phrase>
 <phrase>
   id: LANG_CROSSFEED
-  desc: in sound settings
+  desc: in Settings > Sound, the setting that feeds a little of each stereo channel into the other: named as a stereo setting (Stereo Crossfeed), with the language's own word for stereo; short, to fit beside its value (On, Off) on the iPod photo's rows of one line
   user: core
   <source>
-    *: "Headphone Crossfeed"
-    ipodcolor: "Headphone Crossfeed"
+    *: "Stereo Crossfeed"
+    ipodcolor: "Stereo Crossfeed"
   </source>
   <dest>
-    *: "Mešanje za slušalke"
-    ipodcolor: "Mešanje za slušalke"
+    *: "Stereo mešanje"
+    ipodcolor: "Stereo mešanje"
   </dest>
   <voice>
-    *: "Mešanje kanalov za slušalke"
+    *: "Stereo mešanje kanalov"
   </voice>
 </phrase>
 <phrase>
@@ -18465,13 +18465,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_PODCAST_SPEED
-  desc: the hint in the band under Settings > Playback while Podcast Speed is selected, in three lines at most: what the user gets from it
+  desc: deprecated
   user: core
   <source>
-    *: "How fast podcasts play. Voices keep their natural pitch."
+    *: ""
   </source>
   <dest>
-    *: "Kako hitro se predvajajo podcasti. Glasovi ohranijo naravno višino."
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -18479,15 +18479,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_AUDIOBOOK_SPEED
-  desc: the hint in the band under Settings > Playback while Audiobook Speed is selected, in three lines at most: what the user gets from it
+  desc: deprecated
   user: core
   <source>
-    *: "How fast audiobooks play. Voices keep their natural pitch."
-    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
+    *: ""
   </source>
   <dest>
-    *: "Kako hitro se predvajajo zvočne knjige. Glasovi ohranijo naravno višino."
-    ipodcolor: "Kako hitro se predvajajo zvočne knjige. Glasovi ohranijo naravno višino."
+    *: ""
   </dest>
   <voice>
     *: ""
