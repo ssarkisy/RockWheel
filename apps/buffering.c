@@ -40,6 +40,10 @@
 #endif
 #include "buffering.h"
 #include "linked_list.h"
+#ifdef HAVE_PITCHCONTROL
+#include "sound.h"
+#include "tdspeed.h"
+#endif
 
 /* Define LOGF_ENABLE to enable logf output in this file */
 /* #define LOGF_ENABLE */
@@ -151,18 +155,30 @@ static struct data_counters
     size_t remaining;   /* Amount of data needing to be buffered */
     size_t buffered;    /* Amount of data currently in the buffer */
     size_t useful;      /* Amount of data still useful to the user */
-    size_t audio;       /* Of that, the streamed audio's (TYPE_PACKET_AUDIO) */
+    /* how long the streamed audio of that (TYPE_PACKET_AUDIO) is taken to
+       play, during a hold (hold_audio_ms()); and whether a track's metadata
+       is still to be read with nothing before it still to buffer, the next
+       the filling would read */
+    unsigned long audio_ms;
+    bool id3_unread;
 } data_counters;
 
 /* The filling ahead held off until hold_until (buf_hold_fill()), as long as
-   the audio buffered ahead plays that long and HOLD_SPARE_TICKS more at
-   HOLD_BYTES_PER_SEC, a high rate: PCM of 24 bits at 192 kHz, stereo. So is
-   a faster stream, as 32-bit or float PCM or one sped up: the hold gives way
-   while a second of that rate, 1.15 MB, is still ahead, and the disk fills
-   the buffer faster than any stream it can keep up with empties it. */
-#define HOLD_BYTES_PER_SEC  (192000 * 3 * 2)
+   the audio buffered ahead is taken to play that long and HOLD_SPARE_TICKS
+   more, by its own tracks' rates as hold_audio_ms() estimates them, and the
+   filling has no track's metadata to read next */
 #define HOLD_SPARE_TICKS    HZ
 #define HOLD_MAX_TICKS      (2 * HZ)
+/* A track's rate taken as twice its file's average and at least 320 kbps,
+   the most an MP3 takes: VBR and lossless vary around their average, louder
+   or busier parts rarely by over twice it for seconds, and a file's tags and
+   pictures, counted in the average, make it the higher. A part denser than
+   that runs the audio ahead down faster, which ends the hold the sooner. */
+#define HOLD_RATE_FACTOR    2
+#define HOLD_MIN_BYTES_PER_SEC (320000 / 8)
+/* and without its length and bitrate, or its metadata not in the buffer: a
+   high rate, PCM of 24 bits at 192 kHz, stereo */
+#define HOLD_BYTES_PER_SEC  (192000 * 3 * 2)
 static volatile bool hold_on;
 static volatile long hold_until;
 /* buffer_handle() stopped by the hold, with the handle not yet in */
@@ -600,12 +616,42 @@ fill_buffer     : Call buffer_handle for all handles that have data to buffer
 These functions are used by the buffering thread to manage buffer space.
 */
 
+/* How long so many bytes of a track's audio are taken to play, at least by
+   its estimated rate as above, faster as the music is (pitch and
+   timestretch, never slower than at 100%); id3 its metadata, NULL if not
+   known. Bytes after its last frame, as tags at a file's end, count too. */
+static unsigned long hold_audio_ms(size_t bytes, const struct mp3entry *id3)
+{
+    uint64_t rate = HOLD_BYTES_PER_SEC;
+    if (id3)
+    {
+        uint64_t average = 0;
+        if (id3->length > 0 && id3->filesize > 0)
+            average = (uint64_t)id3->filesize * 1000 / id3->length;
+        else if (id3->bitrate > 0)
+            average = (uint64_t)id3->bitrate * (1000 / 8);
+        if (average > 0)
+            rate = MAX(average * HOLD_RATE_FACTOR, HOLD_MIN_BYTES_PER_SEC);
+    }
+#ifdef HAVE_PITCHCONTROL
+    const uint64_t speed = (uint64_t)sound_get_pitch() * dsp_get_timestretch()
+                           / PITCH_SPEED_100;
+    if (speed > PITCH_SPEED_100)
+        rate = rate * speed / PITCH_SPEED_100;
+#endif
+    return (uint64_t)bytes * 1000 / rate;
+}
+
 static int update_data_counters(struct data_counters *dc)
 {
     size_t buffered  = 0;
     size_t remaining = 0;
     size_t useful    = 0;
-    size_t audio     = 0;
+    unsigned long audio_ms = 0;
+    bool id3_unread = false;
+    bool incomplete_before = false; /* a handle before still to buffer */
+    /* the metadata of the audio handle next: each track's comes before it */
+    const struct mp3entry *id3 = NULL;
 
     if (dc == NULL)
         dc = &data_counters;
@@ -627,12 +673,27 @@ static int update_data_counters(struct data_counters *dc)
         if (m->id == base_handle_id)
             is_useful = true;
 
+        if (m->type == TYPE_ID3)
+            id3 = end >= m->filesize && m->filesize == sizeof(struct mp3entry)
+                  ? ringbuf_ptr(m->data) : NULL;
+
         if (is_useful)
         {
             useful += end - pos;
-            if (m->type == TYPE_PACKET_AUDIO)
-                audio += end - pos;
+            if (m->type == TYPE_PACKET_AUDIO && hold_on)
+                audio_ms += hold_audio_ms(end - pos, id3);
         }
+        /* only the metadata the filling reads next. One after a handle
+           still to buffer, as a long track's next is opened while its audio
+           still comes, waits for that anyway: the track can't end before the
+           rest of its audio is read, which is read at once as it's asked */
+        if (m->type == TYPE_ID3 && end < m->filesize && !incomplete_before)
+            id3_unread = true;
+        if (end < m->filesize)
+            incomplete_before = true;
+        /* not taken for another's, as the next track's comes before it */
+        if (m->type == TYPE_PACKET_AUDIO || m->type == TYPE_ATOMIC_AUDIO)
+            id3 = NULL;
     }
 
     mutex_unlock(&llist_mutex);
@@ -640,18 +701,24 @@ static int update_data_counters(struct data_counters *dc)
     dc->buffered  = buffered;
     dc->remaining = remaining;
     dc->useful    = useful;
-    dc->audio     = audio;
+    dc->audio_ms  = audio_ms;
+    dc->id3_unread = id3_unread;
 
     return num;
 }
 
 /* On the buffering thread, its counters up to date: the filling ahead held
    now. The hold ends by itself at its time, and gives way while it's on to
-   less audio ahead than plays for the rest of it and a second more at
-   HOLD_BYTES_PER_SEC: as that runs down, the filling goes on. */
+   less audio ahead than is taken to play for the rest of it and a second
+   more (hold_audio_ms()): as that runs down, the filling goes on. Nor does
+   it hold while the filling has a track's metadata to read next: read, it
+   lets the track's other handles open, whose audio the hold then stops
+   after a chunk. Held, the track could change without them, once the bytes
+   taken for the audio before it had played, some of them not audio, as a
+   cover at its file's end. */
 static bool fill_held(void)
 {
-    if (!hold_on)
+    if (!hold_on || data_counters.id3_unread)
         return false;
     const long left = hold_until - current_tick;
     if (left <= 0)
@@ -659,8 +726,8 @@ static bool fill_held(void)
         hold_on = false;
         return false;
     }
-    return data_counters.audio
-           >= (size_t)(left + HOLD_SPARE_TICKS) * (HOLD_BYTES_PER_SEC / HZ);
+    return data_counters.audio_ms
+           >= (unsigned long)(left + HOLD_SPARE_TICKS) * (1000 / HZ);
 }
 
 /* the same with the counters brought up to date first, as the buffer fills */
