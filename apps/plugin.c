@@ -1023,6 +1023,13 @@ void plugin_load_keep_screen(void)
     keep_screen = true;
 }
 
+static bool to_wps_unshown;
+
+void plugin_load_to_wps_unshown(void)
+{
+    to_wps_unshown = true;
+}
+
 bool plugin_is_running(void)
 {
     return plugin_running;
@@ -1044,6 +1051,8 @@ int plugin_load(const char* plugin, const void* parameter)
     /* the caller's, for this load alone */
     const bool keep = keep_screen;
     keep_screen = false;
+    const bool unshown = to_wps_unshown;
+    to_wps_unshown = false;
     if (!plugin)
         return PLUGIN_ERROR;
 
@@ -1251,7 +1260,10 @@ int plugin_load(const char* plugin, const void* parameter)
     tc->dirfilter = last_dirfilter_p;
 
     pop_current_activity_without_refresh();
-    if (get_current_activity() != ACTIVITY_WPS)
+    /* on to Now Playing, which draws all of the screen: nothing of the screen
+       under it drawn for it */
+    const bool to_wps = unshown && rc == PLUGIN_GOTO_WPS;
+    if (get_current_activity() != ACTIVITY_WPS && !to_wps)
     {
         FOR_NB_SCREENS(i)
             skin_update(CUSTOM_STATUSBAR, i, SKIN_REFRESH_ALL);
@@ -1304,7 +1316,12 @@ int plugin_load(const char* plugin, const void* parameter)
     {
         lcd_clear_display();
         FOR_NB_SCREENS(i)
-            viewportmanager_theme_undo(i, true);
+        {
+            if (to_wps)
+                viewportmanager_theme_undo_unshown(i);
+            else
+                viewportmanager_theme_undo(i, true);
+        }
     }
     else
         /* fix dangling sbs_title pointer */

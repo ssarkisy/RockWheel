@@ -413,10 +413,14 @@ static int cover_flow(const char *at)
        chunks, the plugin's load, its album index and its covers took two to
        three times as long on the iPod. Ended here too, however it returned */
     buf_hold_fill(COVER_FLOW_HOLD);
+    /* a song chosen, on to Now Playing: the theme given back undrawn, which
+       Now Playing draws over at once, or wpsscrn() if it shows none */
+    plugin_load_to_wps_unshown();
     const int ret = plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", at);
     buf_hold_fill(0);
     /* the theme Now Playing gave back undrawn for it, if it didn't start */
-    viewportmanager_theme_draw_unshown();
+    if (ret != PLUGIN_GOTO_WPS)
+        viewportmanager_theme_draw_unshown();
     cover_flow_go_to_offered = false;
     /* music started there is Cover Flow's, not the lists' it was
        opened over (note_music_origin()) */
@@ -929,6 +933,11 @@ static int wpsscrn(void* param)
        taken on the way here, so the hold is still the last action. */
     const bool paused = !audstatus && action_last_action() == ACTION_TREE_STOP;
     (void)param;
+    /* nothing playing for it to show: the theme left undrawn for it (Cover
+       Flow's, plugin_load_to_wps_unshown()) drawn now, under what shows, and
+       before the activity is Now Playing's, whose status line it isn't */
+    if (!audstatus)
+        viewportmanager_theme_draw_unshown();
     /* the theme isn't drawn first: Now Playing clears the screen and draws
        it then, if it shows it at all. Drawn whole after a list it took
        140 ms, behind which the slide into Now Playing waited */

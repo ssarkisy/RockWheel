@@ -1288,6 +1288,10 @@ bool plugin_is_running(void);
    still on the screen, the screen drawn since not shown (root_menu.c's
    cover_flow_screen()) */
 void plugin_load_keep_screen(void);
+/* and if the plugin it loads goes on to Now Playing (PLUGIN_GOTO_WPS), which
+   draws the screen anew, the theme under it given back undrawn, the status
+   line too (viewportmanager_theme_undo_unshown()): Cover Flow's songs */
+void plugin_load_to_wps_unshown(void);
 
 /* defined by the plugin */
 extern const struct plugin_api *rb;
