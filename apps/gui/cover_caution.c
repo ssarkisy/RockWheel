@@ -243,6 +243,28 @@ static void clear_rows(int x, int y, int w, int h, const short cols[4])
     }
 }
 
+/* The ground under the note again from the backdrop, where the list's
+   shadow is over the pane's edge (UI_METRIC_PANE_SHADOW): left of column
+   wall, the shadow's, the backdrop's own columns, which have it; right of
+   it the backdrop's 16 columns just after it repeated, the period of its
+   dither, plain there: its note is further in. The screen's columns at the
+   pane's edge, which clear_rows() repeats, are the shadow's: dark stripes
+   across the pane */
+static void shadow_ground(const fb_data *backdrop, int x, int y, int w, int h,
+                          int wall)
+{
+    for (int r = 0; r < h; r++)
+    {
+        const fb_data *b = backdrop + (y + r) * LCD_FBWIDTH;
+        fb_data *p = FBADDR(x, y + r);
+        for (int i = 0; i < w; i++)
+        {
+            const int c = x + i;
+            p[i] = c < wall ? b[c] : b[wall + ((c - wall) & 15)];
+        }
+    }
+}
+
 /* four columns side by side from sx, for clear_rows() */
 static void columns(int sx, short cols[4])
 {
@@ -504,9 +526,14 @@ static void draw_pane(struct screen *display, const struct look *lk,
     const bool recess = ui_metric(UI_METRIC_PANE_SHADE) > 0;
     const int from = x + 1 + recess;
     const fb_data *backdrop = recess ? lcd_get_backdrop() : NULL;
+    const int wall = x + menu_cover_pane_shadow_width();
+    const fb_data *shadowed = wall > x && wall + 16 <= LCD_WIDTH
+                              ? lcd_get_backdrop() : NULL;
     if (backdrop)
         display->bitmap_part(backdrop, from, 24, STRIDE(SCREEN_MAIN, LCD_WIDTH, LCD_HEIGHT),
                              from, 24, LCD_WIDTH - 2 - from, LCD_HEIGHT - 24);
+    else if (shadowed)
+        shadow_ground(shadowed, from, 24, LCD_WIDTH - 2 - from, LCD_HEIGHT - 24, wall);
     else
         clear_rows(from, 24, LCD_WIDTH - 2 - from, LCD_HEIGHT - 24, lk->pane_cols);
     struct para ps[2];
