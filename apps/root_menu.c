@@ -153,6 +153,10 @@ static int nav_count;
 /* the root loop opens the top one again, as it was left; and it comes from
    Now Playing, gone back from or left */
 static bool nav_again, nav_from_wps;
+/* Now Playing opened again from the history with nothing playing, as by Menu
+   over a screen opened from it after the music ended or was stopped there:
+   wpsscrn() shows it stopped rather than playing anything (load_next_screen) */
+static bool nav_wps_stopped;
 /* the state of the entry added next */
 static char nav_fresh[MAX_PATH];
 
@@ -936,6 +940,14 @@ static int wpsscrn(void* param)
        stays, also at the power-off that a hold held on comes to. No button is
        taken on the way here, so the hold is still the last action. */
     const bool paused = !audstatus && action_last_action() == ACTION_TREE_STOP;
+    /* Gone back to from the history by Menu, with the music ended or stopped
+       since it was left (nav_wps_stopped): as stopped, the song a Play would
+       start paused at its place, the list's first after its end, as a held
+       Play shows it, and nothing played. With no song for it, the screen
+       under it at once, without a word */
+    const bool again = nav_wps_stopped;
+    nav_wps_stopped = false;
+    const bool show_paused = paused || again;
     (void)param;
     /* nothing playing for it to show: the theme left undrawn for it (Cover
        Flow's, plugin_load_to_wps_unshown()) drawn now, under what shows, and
@@ -964,6 +976,11 @@ static int wpsscrn(void* param)
         talk_shutup();
         ret_val = gui_wps_show();
     }
+    else if (again && playlist_amount() <= 0)
+    {
+        /* the list emptied there, as by Up Next's Remove: the screen under
+           it, the list not loaded again to find so, with its splash */
+    }
     else if (global_status.resume_index != -1)
     {
         DEBUGF("Resume index %d crc32 %lX offset %lX\n",
@@ -978,10 +995,13 @@ static int wpsscrn(void* param)
             if (loaded >= 0)
                 playlist_check_resume();
             if (global_status.resume_index == -1 || playlist_amount() <= 0)
-                splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
+            {
+                if (!again)
+                    splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
+            }
             else
             {
-                if (paused)
+                if (show_paused)
                     playlist_resume_track_paused(global_status.resume_index,
                         global_status.resume_crc32,
                         global_status.resume_elapsed,
@@ -996,17 +1016,23 @@ static int wpsscrn(void* param)
         }
     }
     else if (!file_exists(PLAYLIST_CONTROL_FILE))
-        splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
+    {
+        if (!again)
+            splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
+    }
     /* a list played to its end starts again from the top, with no question */
     else if ((loaded = resume_list()) != -1)
     {
         if (loaded >= 0)
             playlist_check_resume();
         if (playlist_amount() <= 0)
-            splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
+        {
+            if (!again)
+                splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
+        }
         else
         {
-            if (paused)
+            if (show_paused)
                 playlist_start_paused(0, 0, 0);
             else
                 playlist_start(0, 0, 0);
@@ -3137,6 +3163,7 @@ load_next_screen: /* load_screen is inlined */
                 false;
             if (!nav_again && !action)
                 nav_push(screen, nav_kind_of(screen));
+            nav_wps_stopped = screen == GO_TO_WPS && nav_again && !audio_status();
 #ifdef HAVE_TAGCACHE
             if (screen == GO_TO_PLAYLIST_SONGS)
                 next_screen = playlist_songs();
