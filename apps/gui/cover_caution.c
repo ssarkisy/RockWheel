@@ -246,13 +246,16 @@ static void clear_rows(int x, int y, int w, int h, const short cols[4])
 /* The ground under the note again from the backdrop, where the list's
    shadow is over the pane's edge (UI_METRIC_PANE_SHADOW): left of column
    wall, the shadow's, the backdrop's own columns, which have it; right of
-   it the backdrop's 16 columns just after it repeated, the period of its
-   dither, plain there: its note is further in. The screen's columns at the
-   pane's edge, which clear_rows() repeats, are the shadow's: dark stripes
-   across the pane */
+   it the backdrop's last 16 columns repeated, each column the one of them
+   at its place in the period of its dither, plain at the pane's right end,
+   as draw_photos_panel_ground() has them (skin_display.c): the columns just
+   right of the shadow have the note's head on the iPod photo. The screen's
+   columns at the pane's edge, which clear_rows() repeats, are the shadow's:
+   dark stripes across the pane */
 static void shadow_ground(const fb_data *backdrop, int x, int y, int w, int h,
                           int wall)
 {
+    const int plain_x = LCD_WIDTH - 16;
     for (int r = 0; r < h; r++)
     {
         const fb_data *b = backdrop + (y + r) * LCD_FBWIDTH;
@@ -260,7 +263,7 @@ static void shadow_ground(const fb_data *backdrop, int x, int y, int w, int h,
         for (int i = 0; i < w; i++)
         {
             const int c = x + i;
-            p[i] = c < wall ? b[c] : b[wall + ((c - wall) & 15)];
+            p[i] = c < wall ? b[c] : b[plain_x + ((unsigned)(c - plain_x) & 15)];
         }
     }
 }
@@ -527,8 +530,7 @@ static void draw_pane(struct screen *display, const struct look *lk,
     const int from = x + 1 + recess;
     const fb_data *backdrop = recess ? lcd_get_backdrop() : NULL;
     const int wall = x + menu_cover_pane_shadow_width();
-    const fb_data *shadowed = wall > x && wall + 16 <= LCD_WIDTH
-                              ? lcd_get_backdrop() : NULL;
+    const fb_data *shadowed = wall > x ? lcd_get_backdrop() : NULL;
     if (backdrop)
         display->bitmap_part(backdrop, from, 24, STRIDE(SCREEN_MAIN, LCD_WIDTH, LCD_HEIGHT),
                              from, 24, LCD_WIDTH - 2 - from, LCD_HEIGHT - 24);

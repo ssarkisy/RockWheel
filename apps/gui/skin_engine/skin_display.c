@@ -1622,17 +1622,21 @@ static void draw_cover_tinted_image(struct screen *display, const struct gui_img
    time. A row of the backdrop the same as the backdrop's row just under the
    picture (over it, at the screen's foot) is plain already and is drawn as
    it is: a pane alike from top to bottom keeps its floor and its walls, as
-   Dieter's shadow at its left. Any other row, as Classic's gradient, has its
-   16 pixels at the picture's left edge repeated, the period of a whole-screen
-   backdrop's dither (tools/buildzip.pl's at packaging, bmp.c's DITHERX for
-   one loaded as 24 bit; a row of one colour repeats in 16 too), so that a
-   gradient is the backdrop's own. A limit: where the pane changes from row
-   to row, or the row under (over) the picture isn't its plain ground, or
-   the picture is as tall as the screen, a wall at its left is repeated
-   across. None of the four themes is such a one. The list's shadow over
-   the pane (menu_cover_pane_shadow_width()) is such a wall, in the
+   Dieter's shadow at its left. Any other row, as Classic's gradient, has the
+   backdrop's last 16 pixels repeated, each column the one of them at its
+   place in the period of a whole-screen backdrop's dither (tools/buildzip.pl's
+   at packaging, bmp.c's DITHERX for one loaded as 24 bit; a row of one colour
+   repeats in 16 too), so that a gradient is the backdrop's own. The pane's
+   right end is plain: Classic's note is in its middle, ending 13 columns
+   before those 16 on the iPod photo and 26 on the Video. Columns nearer its
+   left are not: in the photo's narrower pane the note begins 3 columns
+   right of the list's shadow, and on the Video at the 16th. A limit: where
+   the pane changes from row to row, or the row under (over) the picture
+   isn't its plain ground, or the picture is as tall as the screen, a wall
+   at its left goes. None of the four themes is such a one but for the
+   list's shadow over the pane (menu_cover_pane_shadow_width()), in the
    backdrop's rows: its columns are the backdrop's own, with nothing else
-   there, and the 16 repeated are those just right of it. */
+   there. */
 static void draw_photos_panel_ground(struct screen *display,
                                      const struct gui_img *img)
 {
@@ -1644,10 +1648,10 @@ static void draw_photos_panel_ground(struct screen *display,
     if (!backdrop || display->screen_type != SCREEN_MAIN || left < 0
         || width <= 0 || height <= 0)
         return;
-    /* the shadow's columns at the picture's left, if 16 are left after them */
-    int wall = ui_metric(UI_METRIC_PANE_LEFT) + menu_cover_pane_shadow_width() - left;
-    if (wall < 0 || wall + 16 > width)
-        wall = 0;
+    /* the shadow's columns at the picture's left */
+    const int wall = MAX(0, MIN(width, ui_metric(UI_METRIC_PANE_LEFT)
+                                       + menu_cover_pane_shadow_width() - left));
+    const int plain_x = LCD_WIDTH - 16;
     const int plain_y = top + height < LCD_HEIGHT ? top + height : top - 1;
     const fb_data *plain = plain_y >= 0 && plain_y < LCD_HEIGHT
                            ? backdrop + plain_y * LCD_WIDTH + left : NULL;
@@ -1667,8 +1671,10 @@ static void draw_photos_panel_ground(struct screen *display,
                                  img->x, img->y + row, width, 1);
             continue;
         }
+        const fb_data *end = backdrop + (top + row) * LCD_WIDTH + plain_x;
         for (int x = 0; x < width; x++)
-            line[x] = x < wall ? edge[x] : edge[wall + ((x - wall) & 15)];
+            line[x] = x < wall ? edge[x]
+                               : end[(unsigned)(left + x - plain_x) & 15];
         display->bitmap_part(line, 0, 0, width, img->x, img->y + row, width, 1);
     }
 }
