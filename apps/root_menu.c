@@ -829,6 +829,9 @@ static int cover_flow_screen(void *param)
     {
         case PLUGIN_GOTO_WPS:
             return GO_TO_WPS;
+        /* after USB the main menu, as for any plugin (load_plugin_screen()),
+           not the history from before it, as Now Playing to resume */
+        case PLUGIN_USB_CONNECTED:
         case PLUGIN_GOTO_ROOT:
             return GO_TO_ROOT;
         case PLUGIN_GOTO_PLUGIN:
