@@ -768,7 +768,10 @@ unsigned menu_value_colour(const struct gui_synclist *list)
 
 /* and a row's: in Classic, Sort By in the menu of a held Select (onplay.c,
    tree.c), the list's order as a setting, in Settings' colour as Settings'
-   values are; it has no row elsewhere */
+   values are; it has no row elsewhere. Found by its label on purpose: Cover
+   Flow's own menu (pictureflow.c) has the row too, a string of the plugin's
+   with no menu item the firmware could know it by, and its value has the
+   same colour so */
 static unsigned row_value_colour(const struct gui_synclist *list,
                                  const char *text)
 {
