@@ -5790,6 +5790,11 @@ static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
             {
                 struct temp_file_entry *tfe = &entrybuf[j];
 
+                /* every deleted entry against every new one: thousands of
+                   each held the CPU past the hang catcher's 10 s */
+                if (!(j & 255))
+                    do_timed_yield();
+
                 /* one with its own entry's statistics, or the old
                    database's, keeps them */
                 if (tfe->flag & FLAG_RESTORED)
