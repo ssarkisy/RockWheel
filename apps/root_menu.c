@@ -2988,8 +2988,10 @@ void root_menu(void)
                 }
                 global_status.last_screen = GO_TO_ROOT; /* We've returned to ROOT */
                 /* the bottom of the history: none over it, by Menu, held Menu,
-                   USB or a boot */
+                   USB or a boot; nor what the screen left came from, for the
+                   one opened next from here (Cover Flow, the lists) */
                 nav_clear();
+                nav_again = nav_from_wps = false;
                 asked.what = ASK_NONE;
                 /* When we are in the main menu we want the hardware BACK
                  * button to be handled by HOST instead of rockbox */
