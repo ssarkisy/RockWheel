@@ -5554,14 +5554,17 @@ static void kept_place_write(void)
 {
     const bool played = played_current();
     const struct tagtree_place *place = played ? &played_place : &saved_place;
-    kept = (struct kept_place){
-        .magic = KEPT_PLACE_MAGIC, .size = sizeof(kept.place),
-        .commitid = saved_commit, .list = saved_list,
-        .key = played ? place_key(&played_place) : saved_key,
-        .menu = menu_index(place->menu),
-        .csi_menu = -1, .csi_item = -1, .copy = -1, .copy_tag = -1,
-        .place = *place,
-    };
+    /* member by member into the static, not from a compound literal, which
+       built the whole place, some 800 bytes, on the stack first */
+    memset(&kept, 0, sizeof(kept));
+    kept.magic = KEPT_PLACE_MAGIC;
+    kept.size = sizeof(kept.place);
+    kept.commitid = saved_commit;
+    kept.list = saved_list;
+    kept.key = played ? place_key(&played_place) : saved_key;
+    kept.menu = menu_index(place->menu);
+    kept.csi_menu = kept.csi_item = kept.copy = kept.copy_tag = -1;
+    kept.place = *place;
     for (int i = 0; i < 2; i++)
     {
         if (place->csi == &artists_copy[i])
