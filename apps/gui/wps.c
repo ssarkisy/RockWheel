@@ -1367,8 +1367,10 @@ long gui_wps_show(void)
                     gwps_leave_wps(theme_enabled);
                     onplay(state->id3->path,
                            FILE_ATTR_AUDIO, CONTEXT_WPS, hotkey, ONPLAY_NO_CUSTOMACTION);
-                    /* the screen the hotkey asked for, Cover Flow, which the
-                       root loop opens over Now Playing as it is left */
+                    /* a screen asked for there, which the root loop opens
+                       over Now Playing as it is left. None of these hotkeys
+                       asks for one now: Cover Flow's goes the menu's way
+                       below (ACTION_WPS_CONTEXT) */
                     if (root_menu_leave_asked())
                     {
                         gwps_leave_wps(true);

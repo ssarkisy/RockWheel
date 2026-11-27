@@ -277,7 +277,8 @@ enum ui_metric {
        album's: the name over the whole width, a value under it in the
        second line's grey, On or Off too where the theme has no switch; a
        switch at the right margin in the middle of the row, a row without a
-       value its name alone in its middle (menu.c) */
+       value its name alone in its middle (menu.c). No theme has them now:
+       the iPod photo's Settings went to rows of one line, as the Video's */
     UI_METRIC_SETTINGS_TWO_LINES,
     /* the list's shadow over the main menu's pane, as a stock iPod classic's
        (menu_cover.c): percent of stock's strength; 0 for none. In the

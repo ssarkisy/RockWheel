@@ -730,9 +730,9 @@ static int menu_values_end(const struct list_putlineinfo_t *info)
 }
 
 /* A Settings row's second line in a theme of rows of two lines
-   (UI_METRIC_SETTINGS_TWO_LINES), of the main screen: its value, On or Off
-   too where the theme has no switch; none for a switch's, which is at the
-   row's end, nor for a row without one */
+   (UI_METRIC_SETTINGS_TWO_LINES, which no theme has now), of the main
+   screen: its value, On or Off too where the theme has no switch; none for
+   a switch's, which is at the row's end, nor for a row without one */
 static const char *menu_value_line(int selected_item, void *data, char *buffer,
                                    size_t buffer_len)
 {
@@ -991,11 +991,12 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         return;
     }
 
-    /* Settings' rows of two lines (menu_value_line()): the name over the
-       whole width to the values' margin, cut short with "…" there or,
-       selected, scrolling to it; the row's value on its second line, which
-       the list draws under this, its name's part. A row without one, as one
-       that leads on, the name alone in the middle of the row */
+    /* Settings' rows of two lines (menu_value_line()), in no theme now:
+       the name over the whole width to the values' margin, cut short with
+       "…" there or, selected, scrolling to it; the row's value on its
+       second line, which the list draws under this, its name's part. A row
+       without one, as one that leads on, the name alone in the middle of
+       the row */
     const bool two_lines = info->list->callback_get_subline == menu_value_line;
     if (two_lines && (!tab || info->linedes->row_height > 0))
     {
