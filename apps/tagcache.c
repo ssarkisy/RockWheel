@@ -114,6 +114,7 @@
 #define USR_CANCEL false
 #else/*!defined(PLUGIN)*/
 #define USR_CANCEL (tc_stat.commit_delayed == true)
+#define qsort_yielding qsort /* the plugin's, rb->qsort */
 #endif /*!defined(PLUGIN)*/
 #if defined(PLUGIN) || defined(__PCTOOL__)
 #define health_note(...) do { } while (0) /* the firmware's own log */
@@ -4039,7 +4040,7 @@ struct restore_mark {
 static struct restore_mark restore_from;
 static bool restore_pending;
 
-/* same set as resurrection in build_numeric_indices() */
+/* same set as resurrect_take() */
 static const unsigned char restore_tags[] = {
     tag_playcount, tag_rating, tag_playtime, tag_lastplayed, tag_commitid,
     tag_lastelapsed, tag_lastoffset, tag_dateadded
@@ -5689,6 +5690,217 @@ static long date_added(long mtime, bool new_song, long now)
     return 0;
 }
 
+/* A deleted entry's statistics, for a new entry that matches it: the last of
+   its matches in the database's order gives the counts */
+static void resurrect_take(struct temp_file_entry *tfe,
+                           const struct index_entry *idx)
+{
+    static const unsigned char tags[] = {
+        tag_playcount, tag_rating, tag_playtime, tag_lastplayed, tag_commitid,
+        tag_lastelapsed, tag_lastoffset
+    };
+    for (unsigned k = 0; k < ARRAYLEN(tags); k++)
+        tfe->tag_offset[tags[k]] = idx->tag_seek[tags[k]];
+    /* its tags changed, it keeps the date it was added */
+    if (!tfe->tag_offset[tag_dateadded])
+        tfe->tag_offset[tag_dateadded] = idx->tag_seek[tag_dateadded];
+    logf("Entry resurrected");
+}
+
+/* Without room for the lists of resurrect_batch(): every deleted entry not
+   resurrected yet against every new entry of the batch, yielding as it goes.
+   Its time grows with the product of the two counts: thousands of each held
+   the CPU past the hang catcher's 10 s without the yield. A safeguard only:
+   commit()'s room check for the tags' indices leaves several times the
+   lists' size. */
+static void resurrect_compare_all(struct temp_file_entry *entrybuf, int count,
+                                  long old_count)
+{
+    for (long i = 0; i < old_count && !USR_CANCEL; i++)
+    {
+        struct index_entry *idx = &commit_idx[i];
+
+        /**
+         * Skip unless the entry is marked as being deleted
+         * or the data has already been resurrected.
+         */
+        if (!(idx->flag & FLAG_DELETED) || (idx->flag & FLAG_RESURRECTED))
+            continue;
+
+        /* Now try to match the entry. */
+        /**
+         * To succesfully match a song, the following conditions
+         * must apply:
+         *
+         * For numeric fields: tag_length
+         * - Full identical match is required
+         *
+         * If tag_filename matches, no further checking necessary.
+         *
+         * For string hashes: tag_artist, tag_album, tag_title
+         * - All three of these must match
+         */
+        for (int j = 0; j < count; j++)
+        {
+            struct temp_file_entry *tfe = &entrybuf[j];
+
+            if (!(j & 255))
+                do_timed_yield();
+
+            /* one with its own entry's statistics, or the old
+               database's, keeps them */
+            if (tfe->flag & FLAG_RESTORED)
+                continue;
+
+            /* Try to match numeric fields first. */
+            if (tfe->tag_offset[tag_length] != idx->tag_seek[tag_length])
+                continue;
+
+            /* Now it's time to do the hash matching. */
+            if (tfe->tag_offset[tag_filename] != idx->tag_seek[tag_filename])
+            {
+                int match_count = 0;
+
+                /* No filename match, check if we can match two other tags. */
+#define tmpdb_match(tag) \
+    if (tfe->tag_offset[tag] == idx->tag_seek[tag]) \
+        match_count++
+
+                tmpdb_match(tag_artist);
+                tmpdb_match(tag_album);
+                tmpdb_match(tag_title);
+
+                if (match_count < 3)
+                {
+                    /* Still no match found, give up. */
+                    continue;
+                }
+            }
+
+            resurrect_take(tfe, idx);
+
+            /* Avoid processing this entry again. */
+            idx->flag |= FLAG_RESURRECTED;
+        }
+    }
+}
+
+/* The deleted entries not resurrected yet, by their indices in commit_idx,
+   in two lists of n each: by length, title and index, then by length, file
+   name and index. A new entry looks up the deleted ones that match it, by
+   the same length and file name or the same length, artist, album and title,
+   instead of being compared with each. RESURRECT_MATCHED marks an index a
+   new entry of the batch took from. */
+#define RESURRECT_MATCHED 0x80000000u
+static int resurrect_tag; /* the list's string, for the sort */
+
+static int resurrect_cmp(const void *a, const void *b)
+{
+    const uint32_t ia = *(const uint32_t *)a, ib = *(const uint32_t *)b;
+    const int32_t *sa = commit_idx[ia].tag_seek, *sb = commit_idx[ib].tag_seek;
+    if (sa[tag_length] != sb[tag_length])
+        return sa[tag_length] < sb[tag_length] ? -1 : 1;
+    if (sa[resurrect_tag] != sb[resurrect_tag])
+        return sa[resurrect_tag] < sb[resurrect_tag] ? -1 : 1;
+    return ia < ib ? -1 : ia > ib;
+}
+
+/* where the run of that length and string begins in a list of n */
+static long resurrect_find(const uint32_t *list, long n, int tag,
+                           int32_t length, int32_t hash)
+{
+    long lo = 0, hi = n;
+    while (lo < hi)
+    {
+        const long mid = lo + (hi - lo) / 2;
+        const int32_t *s =
+            commit_idx[list[mid] & ~RESURRECT_MATCHED].tag_seek;
+        if (s[tag_length] < length
+            || (s[tag_length] == length && s[tag] < hash))
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    return lo;
+}
+
+/* the index at list[at] while the run goes on, else UINT32_MAX */
+static uint32_t resurrect_at(const uint32_t *list, long n, long at, int tag,
+                             int32_t length, int32_t hash)
+{
+    if (at >= n)
+        return UINT32_MAX;
+    const uint32_t i = list[at] & ~RESURRECT_MATCHED;
+    const int32_t *s = commit_idx[i].tag_seek;
+    return s[tag_length] == length && s[tag] == hash ? i : UINT32_MAX;
+}
+
+/* A batch's new entries, each taking from the deleted entries it matches in
+   the database's order, as the comparison of every pair did. A deleted entry
+   is resurrected after the batch, as that left the batch's other entries to
+   take from it too, and none of the next batch's. */
+static void resurrect_batch(struct temp_file_entry *entrybuf, int count,
+                            uint32_t *lists, long n)
+{
+    uint32_t *by_title = lists, *by_name = lists + n;
+
+    for (int j = 0; j < count && !USR_CANCEL; j++)
+    {
+        struct temp_file_entry *tfe = &entrybuf[j];
+
+        if (!(j & 255))
+            do_timed_yield();
+
+        /* one with its own entry's statistics, or the old database's, keeps
+           them */
+        if (tfe->flag & FLAG_RESTORED)
+            continue;
+
+        const int32_t length = tfe->tag_offset[tag_length];
+        const int32_t title = tfe->tag_offset[tag_title];
+        const int32_t name = tfe->tag_offset[tag_filename];
+        long t = resurrect_find(by_title, n, tag_title, length, title);
+        long f = resurrect_find(by_name, n, tag_filename, length, name);
+        /* the two runs merged by index, each index once */
+        while (true)
+        {
+            const uint32_t at_title =
+                resurrect_at(by_title, n, t, tag_title, length, title);
+            const uint32_t at_name =
+                resurrect_at(by_name, n, f, tag_filename, length, name);
+            const uint32_t i = MIN(at_title, at_name);
+            if (i == UINT32_MAX)
+                break;
+
+            const struct index_entry *idx = &commit_idx[i];
+            const bool match = at_name == i
+                || (idx->tag_seek[tag_artist] == tfe->tag_offset[tag_artist]
+                    && idx->tag_seek[tag_album] == tfe->tag_offset[tag_album]);
+            if (match && !(idx->flag & FLAG_RESURRECTED))
+            {
+                resurrect_take(tfe, idx);
+                if (at_title == i)
+                    by_title[t] |= RESURRECT_MATCHED;
+                if (at_name == i)
+                    by_name[f] |= RESURRECT_MATCHED;
+            }
+            if (at_title == i)
+                t++;
+            if (at_name == i)
+                f++;
+        }
+    }
+
+    for (long k = 0; k < 2 * n; k++)
+    {
+        if (lists[k] & RESURRECT_MATCHED)
+        {
+            lists[k] &= ~RESURRECT_MATCHED;
+            commit_idx[lists[k]].flag |= FLAG_RESURRECTED;
+        }
+    }
+}
+
 static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
 {
     const long old_count = commit_mh.tch.entry_count;
@@ -5698,7 +5910,41 @@ static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
     int entries_processed = 0;
     int i, j;
 
-    max_entries = tempbuf_size / sizeof(struct temp_file_entry) - 1;
+    /* the deleted entries whose statistics new ones may take, in their lists
+       at the end of the buffer, if they leave at least half of it to the new
+       entries */
+    long resurrect_count = 0;
+    for (i = 0; i < old_count; i++)
+    {
+        if ((commit_idx[i].flag & (FLAG_DELETED | FLAG_RESURRECTED))
+            == FLAG_DELETED)
+            resurrect_count++;
+    }
+    const size_t lists_size = resurrect_count * 2 * sizeof(uint32_t);
+    uint32_t *lists = NULL;
+    char *entries_end = tempbuf + tempbuf_size;
+    if (resurrect_count > 0 && lists_size <= tempbuf_size / 2)
+    {
+        lists = (uint32_t *)ALIGN_DOWN(entries_end - lists_size, 4);
+        entries_end = (char *)lists;
+        long k = 0;
+        for (i = 0; i < old_count; i++)
+        {
+            if ((commit_idx[i].flag & (FLAG_DELETED | FLAG_RESURRECTED))
+                == FLAG_DELETED)
+            {
+                lists[k] = lists[resurrect_count + k] = i;
+                k++;
+            }
+        }
+        resurrect_tag = tag_title;
+        qsort_yielding(lists, resurrect_count, sizeof(*lists), resurrect_cmp);
+        resurrect_tag = tag_filename;
+        qsort_yielding(lists + resurrect_count, resurrect_count,
+                       sizeof(*lists), resurrect_cmp);
+    }
+
+    max_entries = (entries_end - tempbuf) / sizeof(struct temp_file_entry) - 1;
 
     logf("Building numeric indices...");
     tmpr_start(tmpfd, sizeof(struct tagcache_header));
@@ -5762,91 +6008,10 @@ static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
         }
 
         /* Check if we can resurrect some deleted runtime statistics data. */
-        for (i = 0; i < old_count && !USR_CANCEL; i++)
-        {
-            struct index_entry *idx = &commit_idx[i];
-
-            /**
-             * Skip unless the entry is marked as being deleted
-             * or the data has already been resurrected.
-             */
-            if (!(idx->flag & FLAG_DELETED) || (idx->flag & FLAG_RESURRECTED))
-                continue;
-
-            /* Now try to match the entry. */
-            /**
-             * To succesfully match a song, the following conditions
-             * must apply:
-             *
-             * For numeric fields: tag_length
-             * - Full identical match is required
-             *
-             * If tag_filename matches, no further checking necessary.
-             *
-             * For string hashes: tag_artist, tag_album, tag_title
-             * - All three of these must match
-             */
-            for (j = 0; j < count; j++)
-            {
-                struct temp_file_entry *tfe = &entrybuf[j];
-
-                /* every deleted entry against every new one: thousands of
-                   each held the CPU past the hang catcher's 10 s */
-                if (!(j & 255))
-                    do_timed_yield();
-
-                /* one with its own entry's statistics, or the old
-                   database's, keeps them */
-                if (tfe->flag & FLAG_RESTORED)
-                    continue;
-
-                /* Try to match numeric fields first. */
-                if (tfe->tag_offset[tag_length] != idx->tag_seek[tag_length])
-                    continue;
-
-                /* Now it's time to do the hash matching. */
-                if (tfe->tag_offset[tag_filename] != idx->tag_seek[tag_filename])
-                {
-                    int match_count = 0;
-
-                    /* No filename match, check if we can match two other tags. */
-#define tmpdb_match(tag) \
-    if (tfe->tag_offset[tag] == idx->tag_seek[tag]) \
-        match_count++
-
-                    tmpdb_match(tag_artist);
-                    tmpdb_match(tag_album);
-                    tmpdb_match(tag_title);
-
-                    if (match_count < 3)
-                    {
-                        /* Still no match found, give up. */
-                        continue;
-                    }
-                }
-
-                /* A match found, now copy & resurrect the statistical data. */
-#define tmpdb_copy_tag(tag) \
-    tfe->tag_offset[tag] = idx->tag_seek[tag]
-
-                tmpdb_copy_tag(tag_playcount);
-                tmpdb_copy_tag(tag_rating);
-                tmpdb_copy_tag(tag_playtime);
-                tmpdb_copy_tag(tag_lastplayed);
-                tmpdb_copy_tag(tag_commitid);
-                tmpdb_copy_tag(tag_lastelapsed);
-                tmpdb_copy_tag(tag_lastoffset);
-                /* its tags changed, it keeps the date it was added */
-                if (!tfe->tag_offset[tag_dateadded])
-                    tmpdb_copy_tag(tag_dateadded);
-
-                /* Avoid processing this entry again. */
-                idx->flag |= FLAG_RESURRECTED;
-
-                logf("Entry resurrected");
-            }
-        }
-
+        if (lists)
+            resurrect_batch(entrybuf, count, lists, resurrect_count);
+        else if (resurrect_count > 0)
+            resurrect_compare_all(entrybuf, count, old_count);
 
         /* Commit the data to the index. */
         for (i = 0; i < count && !USR_CANCEL; i++)
