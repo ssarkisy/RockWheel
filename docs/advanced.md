@@ -138,6 +138,8 @@ Users have installed RockWheel this way. If these steps don't work for you, plea
 
 **By hand:** extract the firmware zip for your iPod onto it, replacing the existing files. If you installed the extra games, extract the games zip too. Update both each time: games from an older version don't run with newer firmware. Saved games and high scores are kept.
 
+**From 2.1.0:** see "Before you update" in the [2.1.1 release notes](https://github.com/ssarkisy/RockWheel/releases/tag/v2.1.1).
+
 **From 2.0 or 2.0.1:** see "Before you update" in the [2.1 release notes](https://github.com/ssarkisy/RockWheel/releases/tag/v2.1.0).
 
 **From 1.4.1:** see "Before you update" in the [2.0 release notes](https://github.com/ssarkisy/RockWheel/releases/tag/v2.0.0).
@@ -226,7 +228,7 @@ Deleted files leave the library after the next connection and unplug. Moved or r
 
 **Synced music.** The cover can be any size or format that iTunes or Music accepts, PNG included: your computer converts it during the sync. On the iPod Video, choose Rebuild Synced Covers in Settings and then sync, to have Finder make every cover again, including covers synced before 1.4. On the iPod Photo, Finder writes the covers next to the main menu at their full size. Covers Finder wrote before you installed RockWheel don't have that size yet. For those songs, Updating Library makes the picture from the cover inside the song's own file, as long as it's the same picture Finder synced. To have Finder write them all again, choose Rebuild Synced Covers in Settings and then sync.
 
-**Copied music.** Updating Library prepares each song's cover once, in every size the screens use. It takes the picture embedded in the song, or else an image in its folder. Nothing is read from the song's file while you browse or play. A song changed on the iPod shows the note until the next Updating Library. The iPod decodes standard (baseline) JPEG; 400×400 or 600×600 is enough, and larger pictures only take longer. The iPod can't decode PNG or progressive JPEG pictures. Convert them to standard JPEG, or let the app make the covers: open Covers for songs added without syncing and choose Make Covers. The app takes pictures from the songs or from a `cover.jpg` or `folder.jpg` beside them. Updating Library takes each cover the app made only if the song hasn't changed since.
+**Copied music.** Updating Library prepares each song's cover once, in every size the screens use. It takes the picture embedded in the song, or else an image in its folder. Nothing is read from the song's file while you browse or play. A song changed on the iPod shows the note until the next Updating Library. The iPod decodes standard (baseline) JPEG; 400×400 or 600×600 is enough, and larger pictures only take longer. The iPod can't decode PNG or progressive JPEG pictures. Convert them to standard JPEG, or let the app make the covers: open Covers for songs added without syncing and choose Make Covers. The app takes pictures from the songs or from a `cover.jpg` or `folder.jpg` beside them. Updating Library takes each cover the app made only if the song hasn't changed since. An app older than the firmware may make the list covers at another size. The iPod then makes those covers itself from Cover Flow's covers.
 
 **Missing Covers Caution**, under Covers in Lists in Settings › Appearance, is on by default. When a song's picture can't be shown, it says why: a PNG, a progressive JPEG or an unreadable picture. On the iPod Video, Now Playing gives the problem and the fix in the cover's place, and the lists, the main menu's pane and Cover Flow show a "?". On the iPod Photo, Now Playing shows the note and the lists show the "?". Turned off, these songs show the note, as before.
 
@@ -268,11 +270,13 @@ The iPod decodes nearly every format on its second processor core, leaving the f
 
 **Equalizer presets.** My Presets lists the files in `.rockbox/eqs` on the iPod, in up to four levels of folders and up to 256 presets and folders in all. Files you copy there appear after you unplug the iPod. It reads RockWheel's and Rockbox's `.cfg` presets and the `ParametricEQ.txt` files that AutoEq and Equalizer APO write, so you can copy AutoEq's folder for your headphones as it is. A folder that holds a single preset, as AutoEq makes one for each model, is listed as that preset.
 
+The presets for some headphones are files there too: a folder 7Hz Zero 2 with its four presets, and the Koss KPH30i and Sony WH-1000XM4C presets beside your own. RockWheel writes them once, at the first start after you install or update it. A preset you delete doesn't come back with an update or a settings reset. A file of yours with the same name is never replaced. If the disk is full or can't be written, RockWheel tries again at the next start.
+
 A `ParametricEQ.txt` file can have up to ten filters, each a peak (PK), a low shelf (LSC) or a high shelf (HSC). A file with more filters, another kind of filter or settings for one channel isn't used, as the iPod couldn't play it the way its curve shows. RockWheel ignores the file's Preamp and lowers the level by as much as the curve's highest point needs, as it does for every preset. Presets you save in the editor are written at the top of `.rockbox/eqs` in RockWheel's format.
 
 **Sound Check › Albums** uses the album gain that ReplayGain tags store in the files. A song without one gets its track gain, as with On, so a library whose files have no album gain sounds the same with Albums as with On.
 
-The Sony WH-1000XM4C presets are for a wired connection in Active Mode, with the headphones switched on.
+The Sony WH-1000XM4C preset is for a wired connection in Active Mode, with the headphones switched on.
 
 ## Last.fm in detail
 
