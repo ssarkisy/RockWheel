@@ -954,7 +954,9 @@ static void tree_set_width(void)
    shows, as Select+Play that asked for it, let go first, not ending it; a
    key pressed then ends it, pressed and let go here, doing nothing else, a
    step of the wheel, which nothing holds, the one alone. A system event, as
-   USB, ends it and is left for dirbrowse() */
+   USB, ends it at once, even as the key is held, and is left for dirbrowse()
+   with its data: USB's connect has the number its acknowledgement gives back
+   (usb.c), and without it the connection isn't made */
 static void hint_wait(long ticks)
 {
     const long until = current_tick + ticks;
@@ -962,21 +964,37 @@ static void hint_wait(long ticks)
     while (TIME_BEFORE(current_tick, until))
     {
         fresh = fresh || button_status() == BUTTON_NONE;
-        const long button = button_get_w_tmo(HZ / 20);
+        long button = button_get_w_tmo(HZ / 20);
         if (button == BUTTON_NONE)
             continue;
         if (IS_SYSEVENT(button))
         {
-            button_queue_post(button, 0);
-            break;
+            button_queue_post(button, button_get_data());
+            return;
         }
         /* nor a key's release or repeat, as of the one that opened the list */
         if (!fresh || (button & (BUTTON_REL | BUTTON_REPEAT)))
             continue;
         while (button_status() != BUTTON_NONE)
-            button_get_w_tmo(HZ / 20);
-        button_clear_queue();
-        break;
+        {
+            button = button_get_w_tmo(HZ / 20);
+            if (IS_SYSEVENT(button))
+            {
+                button_queue_post(button, button_get_data());
+                return;
+            }
+        }
+        /* the keys gone as button_clear_queue() takes them, the wheel's held
+           steps too, but a system event come meanwhile; nor the key's release
+           left, which button_clear_pressed() keeps */
+        button_clear_pressed();
+        for (int count = button_queue_count(); count > 0; count--)
+        {
+            button = button_get(false);
+            if (IS_SYSEVENT(button))
+                button_queue_post(button, button_get_data());
+        }
+        return;
     }
 }
 
